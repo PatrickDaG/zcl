@@ -26,8 +26,60 @@ pub struct Attribute<'a, T: ZCLType> {
 }
 
 pub enum AnyAttribute<'a> {
-    I16(Attribute<'a, types::I16>),
+    NoData(Attribute<'a, types::NoData>),
+    Data8(Attribute<'a, types::Data8>),
+    Data16(Attribute<'a, types::Data16>),
+    Data24(Attribute<'a, types::Data24>),
+    Data32(Attribute<'a, types::Data32>),
+    Data40(Attribute<'a, types::Data40>),
+    Data48(Attribute<'a, types::Data48>),
+    Data56(Attribute<'a, types::Data56>),
+    Data64(Attribute<'a, types::Data64>),
+    Bool(Attribute<'a, types::Bool>),
+    Bitmap8(Attribute<'a, types::Bitmap8>),
+    Bitmap16(Attribute<'a, types::Bitmap16>),
+    Bitmap24(Attribute<'a, types::Bitmap24>),
+    Bitmap32(Attribute<'a, types::Bitmap32>),
+    Bitmap40(Attribute<'a, types::Bitmap40>),
+    Bitmap48(Attribute<'a, types::Bitmap48>),
+    Bitmap56(Attribute<'a, types::Bitmap56>),
+    Bitmap64(Attribute<'a, types::Bitmap64>),
+    U8(Attribute<'a, types::U8>),
     U16(Attribute<'a, types::U16>),
+    U24(Attribute<'a, types::U24>),
+    U32(Attribute<'a, types::U32>),
+    U40(Attribute<'a, types::U40>),
+    U48(Attribute<'a, types::U48>),
+    U56(Attribute<'a, types::U56>),
+    U64(Attribute<'a, types::U64>),
+    I8(Attribute<'a, types::I8>),
+    I16(Attribute<'a, types::I16>),
+    I24(Attribute<'a, types::I24>),
+    I32(Attribute<'a, types::I32>),
+    I40(Attribute<'a, types::I40>),
+    I48(Attribute<'a, types::I48>),
+    I56(Attribute<'a, types::I56>),
+    I64(Attribute<'a, types::I64>),
+    Enum8(Attribute<'a, types::Enum8>),
+    Enum16(Attribute<'a, types::Enum16>),
+    F16(Attribute<'a, types::F16>),
+    F32(Attribute<'a, types::F32>),
+    F64(Attribute<'a, types::F64>),
+    OctetString(Attribute<'a, types::OctetString>),
+    CharacterString(Attribute<'a, types::CharacterString>),
+    LongOctetString(Attribute<'a, types::LongOctetString>),
+    LongCharacterString(Attribute<'a, types::LongCharacterString>),
+    Array(Attribute<'a, types::Array>),
+    Structure(Attribute<'a, types::Structure>),
+    TimeOfDay(Attribute<'a, types::TimeOfDay>),
+    Date(Attribute<'a, types::Date>),
+    UtcTime(Attribute<'a, types::UtcTime>),
+    ClusterId(Attribute<'a, types::ClusterId>),
+    AttributeId(Attribute<'a, types::AttributeId>),
+    BacnetOid(Attribute<'a, types::BacnetOid>),
+    IeeeAddress(Attribute<'a, types::IeeeAddress>),
+    SecurityKey(Attribute<'a, types::SecurityKey>),
+    Unknown(Attribute<'a, types::Unknown>),
 }
 
 pub enum AttributeSide {
@@ -38,22 +90,27 @@ pub enum AttributeSide {
 
 #[derive(Error, Debug)]
 pub enum ZCLError {
+    #[error("failed to serialize value")]
     Serialization,
+    #[error("value is out of range")]
     ValueOutOfRange,
 }
 
-trait ZCLType {
-    type T;
-    const NON_VALUE: Option<Self::T>;
-    const ID: u8;
+trait ZCLCompatibleType {
     fn len(&self) -> usize;
     //fn to_bytes(self, data: &mut [u8]) -> Result<(), ZCLError>;
     //fn from_bytes(data: &[u8]) -> Result<Self, ZCLError>;
 }
 
+trait ZCLType: ZCLCompatibleType {
+    type T;
+    const NON_VALUE: Option<Self::T>;
+    const ID: u8;
+}
+
 mod globals {
     use crate::types;
-    const ClusterRevision: super::Attribute<types::U16> = super::Attribute {
+    const CLUSTER_REVISION: super::Attribute<types::U16> = super::Attribute {
         code: todo!(),
         side: todo!(),
         writable: todo!(),
@@ -72,10 +129,11 @@ mod globals {
         Complete = 1,
         None = 0xff,
     }
+
     impl types::ZCLEnum for ReportingStatus {
         const NON_VALUE: Self = Self::None;
     }
-    const AttributeReportingStatus: super::Attribute<types::Enum8<ReportingStatus>> =
+    const ATTRIBUTE_REPORTING_STATUS: super::Attribute<types::Enum8<ReportingStatus>> =
         super::Attribute {
             code: todo!(),
             side: todo!(),
