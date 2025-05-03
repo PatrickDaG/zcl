@@ -5,6 +5,12 @@ pub mod types;
 
 fn main() {}
 
+enum AttributeRange<T: ZCLType> {
+    Attr(u16),
+    Size(usize),
+    Value(T),
+}
+
 pub struct Attribute<'a, T: ZCLType> {
     code: u16,
     name: &'a str,
@@ -15,8 +21,8 @@ pub struct Attribute<'a, T: ZCLType> {
     scene: bool,
     optional: bool,
     default: T,
-    min: T,
-    max: T,
+    min: AttributeRange<T>,
+    max: AttributeRange<T>,
 }
 
 pub enum AnyAttribute<'a> {
@@ -44,8 +50,6 @@ trait ZCLType {
     //fn to_bytes(self, data: &mut [u8]) -> Result<(), ZCLError>;
     //fn from_bytes(data: &[u8]) -> Result<Self, ZCLError>;
 }
-
-mod types {}
 
 mod globals {
     use crate::types;
@@ -100,36 +104,47 @@ pub enum Status {
 pub struct Cluster<'a> {
     code: u16,
     name: &'a str,
-    // #[cfg(feature = "std")]
+    #[cfg(feature = "std")]
     attributes: Vec<&'a AnyAttribute<'a>>,
-    // #[cfg(not(feature = "std"))]
-    // attributes: &'a [AnyAttribute<'a>],
+    #[cfg(not(feature = "std"))]
+    attributes: &'a [AnyAttribute<'a>],
 }
 
 pub mod clusters {
+    #[cfg(feature = "std")]
+    macro_rules! attrs {
+        ($attrs: tt) => {
+        vec! $attrs
+    }}
+    #[cfg(not(feature = "std"))]
+    macro_rules! attrs {
+        ($attrs: tt) => {
+            &$attrs
+        };
+    }
     pub mod general {
         const BASIC: crate::Cluster = crate::Cluster {
             code: 0x0000,
             name: "Basic",
-            attributes: vec![],
+            attributes: attrs!([]),
         };
 
         const POWER_CONFIGURATION: crate::Cluster = crate::Cluster {
             code: 0x0001,
             name: "Power Configuration",
-            attributes: vec![],
+            attributes: attrs!([]),
         };
 
         const DEVICE_TEMPERATURE: crate::Cluster = crate::Cluster {
             code: 0x0002,
             name: "Device Temperature",
-            attributes: vec![],
+            attributes: attrs!([]),
         };
 
         const IDENTIFY: crate::Cluster = crate::Cluster {
             code: 0x0003,
             name: "Identify",
-            attributes: vec![],
+            attributes: attrs!([]),
         };
     }
 }
