@@ -1,14 +1,23 @@
 {
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     devshell = {
       url = "github:numtide/devshell";
       inputs.nixpkgs.follows = "nixpkgs";
     };
-    pre-commit-hooks.url = "github:cachix/git-hooks.nix";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    treefmt-nix.url = "github:numtide/treefmt-nix";
-    nci.url = "github:yusdacra/nix-cargo-integration";
+    nci = {
+      url = "github:yusdacra/nix-cargo-integration";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    pre-commit-hooks = {
+      url = "github:cachix/pre-commit-hooks.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    treefmt-nix = {
+      url = "github:numtide/treefmt-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
@@ -30,74 +39,35 @@
         {
           config,
           pkgs,
-          system,
           ...
         }:
         {
-          _module.args.pkgs = import inputs.nixpkgs {
-            inherit system;
-            config.allowUnfree = true;
-          };
-
-          pre-commit.settings.hooks = {
-            treefmt.enable = true;
-          };
           devshells.default = {
-            packages = with pkgs; [
-              hello
+            packages = [
               config.treefmt.build.wrapper
-              (python3.withPackages (p: with p; [ tqdm ]))
-            ];
-            commands = [
-              {
-                package = pkgs.nix;
-                help = "nichts";
-              }
-            ];
-            env = [
-              {
-                name = "TEST";
-                value = "TSET";
-              }
+              pkgs.cargo-release
             ];
             devshell.startup.pre-commit.text = config.pre-commit.installationScript;
           };
 
+          pre-commit.settings.hooks.treefmt.enable = true;
           treefmt = {
             projectRootFile = "flake.nix";
             programs = {
               deadnix.enable = true;
               statix.enable = true;
-              shellcheck.enable = true;
-              beautysh.enable = true;
               nixfmt.enable = true;
               rustfmt.enable = true;
             };
           };
 
-          # Rust
           nci.projects.zcl = {
             path = ./.;
             numtideDevshell = "default";
           };
-          nci.crates.zcl = rec {
-            #runtimeLibs = with pkgs; [
-            #];
-            depsDrvConfig = {
-              mkDerivation = {
-                nativeBuildInputs = [ pkgs.pkg-config ];
-                buildInputs = with pkgs; [
-                  alsa-lib
-                ];
-              };
-            };
-            drvConfig = {
-              mkDerivation = {
-                inherit (depsDrvConfig.mkDerivation) buildInputs;
-                nativeBuildInputs = [ pkgs.pkg-config ];
-              };
-            };
-          };
+          nci.crates.zcl = { };
+
+          packages.default = config.nci.outputs.zcl.packages.release;
         };
     };
 }
