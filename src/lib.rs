@@ -1,3 +1,5 @@
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
+
 use thiserror::Error;
 
 pub mod attributes;
