@@ -2,8 +2,6 @@ use thiserror::Error;
 pub mod attribute;
 pub mod types;
 
-fn main() {}
-
 #[derive(Error, Debug)]
 pub enum ZclError {
     #[error("failed to serialize value")]
@@ -37,8 +35,6 @@ fn define_attribute_raw(
     let mandatory = stringify!($optional) == "M";
 
     crabtime::output! {
-        #[doc = "Value:"]
-        #[doc = ""]
         #[doc = "```rust"]
         #[doc = concat!(
             "Attribute<'static, ",
@@ -58,7 +54,7 @@ fn define_attribute_raw(
         #[doc = concat!("    max: ", stringify!($max), ",")]
         #[doc = "}"]
         #[doc = "```"]
-        const {{name_constant_case}}: crate::attribute::Attribute<'static, $typ> = crate::attribute::Attribute {
+        pub const {{name_constant_case}}: crate::attribute::Attribute<'static, $typ> = crate::attribute::Attribute {
             code: $code,
             name: stringify!($name),
             side: crate::attribute::AttributeSide::Server,
@@ -130,15 +126,15 @@ macro_rules! define_attr_enum {
     };
 }
 
-macro_rules! define_enum8 {
-    ($name:ident, {
+macro_rules! define_enum {
+    ($typ:ty, $name:ident, {
         $($variant:ident = $value:expr),* $(,)?
     }) => {
-        #[repr(u8)]
+        #[repr($typ)]
         #[derive(PartialEq, Debug, Copy, Clone)]
         pub enum $name {
             $($variant = $value),*,
-            None = 0xff,
+            None = <$typ>::MAX,
         }
 
         impl crate::types::ZclEnum for $name {
@@ -147,10 +143,10 @@ macro_rules! define_enum8 {
     };
 }
 
-mod globals {
+pub mod globals {
     define_attr!(0xfffd ClusterRevision U16 0x0001 0xfffe R 0x0000 M);
 
-    define_enum8!(ReportingStatus, { Pending = 0, Complete = 1, });
+    define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
     define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
 }
 
