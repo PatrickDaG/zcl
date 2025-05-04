@@ -1,17 +1,26 @@
-use crate::ZCLCompatibleType;
-use crate::ZCLType;
+pub trait ZclCompatibleType {
+    fn len(&self) -> usize;
+    //fn to_bytes(self, data: &mut [u8]) -> Result<(), ZclError>;
+    //fn from_bytes(data: &[u8]) -> Result<Self, ZclError>;
+}
+
+pub trait ZclType: ZclCompatibleType {
+    type T;
+    const NON_VALUE: Option<Self::T>;
+    const ID: u8;
+}
 
 macro_rules! basic_type {
     ($name: ident, $type: ty, $non: expr, $id: literal, $len: literal) => {
         #[derive(PartialEq, PartialOrd, Debug, Copy, Clone)]
-        pub struct $name($type);
-        impl ZCLCompatibleType for $name {
+        pub struct $name(pub $type);
+        impl ZclCompatibleType for $name {
             fn len(&self) -> usize {
                 $len
             }
         }
 
-        impl ZCLType for $name {
+        impl ZclType for $name {
             type T = $type;
             const NON_VALUE: Option<Self::T> = $non;
             const ID: u8 = $id;
@@ -19,7 +28,7 @@ macro_rules! basic_type {
     };
 }
 
-pub trait ZCLEnum {
+pub trait ZclEnum {
     const NON_VALUE: Self;
 }
 
@@ -64,42 +73,42 @@ basic_type!(I56, i64, Some(0xff80000000000000u64 as i64), 0x2e, 0x7);
 basic_type!(I64, i64, Some(0x8000000000000000u64 as i64), 0x2f, 0x8);
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct Enum8<T: ZCLEnum>(T);
-impl<T: ZCLEnum> ZCLType for Enum8<T> {
+pub struct Enum8<T: ZclEnum>(T);
+impl<T: ZclEnum> ZclType for Enum8<T> {
     type T = T;
     const NON_VALUE: Option<Self::T> = Some(T::NON_VALUE);
     const ID: u8 = 0x30;
 }
-impl<T: ZCLEnum> ZCLCompatibleType for Enum8<T> {
+impl<T: ZclEnum> ZclCompatibleType for Enum8<T> {
     fn len(&self) -> usize {
         0x1
     }
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct Enum16<T: ZCLEnum>(T);
-impl<T: ZCLEnum> ZCLType for Enum16<T> {
+pub struct Enum16<T: ZclEnum>(T);
+impl<T: ZclEnum> ZclType for Enum16<T> {
     type T = T;
     const NON_VALUE: Option<Self::T> = Some(T::NON_VALUE);
     const ID: u8 = 0x31;
 }
-impl<T: ZCLEnum> ZCLCompatibleType for Enum16<T> {
+impl<T: ZclEnum> ZclCompatibleType for Enum16<T> {
     fn len(&self) -> usize {
         0x2
     }
 }
 
-basic_type!(F16, f16, Some(f16::NAN), 0x38, 0x2);
+// basic_type!(F16, f16, Some(f16::NAN), 0x38, 0x2);
 basic_type!(F32, f32, Some(f32::NAN), 0x39, 0x4);
 basic_type!(F64, f64, Some(f64::NAN), 0x3a, 0x8);
 
 pub struct OctetString<'a>(Option<&'a [u8]>);
-impl<'a> ZCLType for OctetString<'a> {
+impl<'a> ZclType for OctetString<'a> {
     type T = Option<&'a [u8]>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x41;
 }
-impl<'a> ZCLCompatibleType for OctetString<'a> {
+impl<'a> ZclCompatibleType for OctetString<'a> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref x) => x.len() + 1,
@@ -109,12 +118,12 @@ impl<'a> ZCLCompatibleType for OctetString<'a> {
 }
 
 pub struct CharacterString<'a>(Option<&'a str>);
-impl<'a> ZCLType for CharacterString<'a> {
+impl<'a> ZclType for CharacterString<'a> {
     type T = Option<&'a str>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x42;
 }
-impl<'a> ZCLCompatibleType for CharacterString<'a> {
+impl<'a> ZclCompatibleType for CharacterString<'a> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref x) => x.len() + 1,
@@ -124,12 +133,12 @@ impl<'a> ZCLCompatibleType for CharacterString<'a> {
 }
 
 pub struct LongOctetString<'a>(Option<&'a [u8]>);
-impl<'a> ZCLType for LongOctetString<'a> {
+impl<'a> ZclType for LongOctetString<'a> {
     type T = Option<&'a [u8]>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x43;
 }
-impl<'a> ZCLCompatibleType for LongOctetString<'a> {
+impl<'a> ZclCompatibleType for LongOctetString<'a> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref x) => x.len() + 2,
@@ -139,12 +148,12 @@ impl<'a> ZCLCompatibleType for LongOctetString<'a> {
 }
 
 pub struct LongCharacterString<'a>(Option<&'a str>);
-impl<'a> ZCLType for LongCharacterString<'a> {
+impl<'a> ZclType for LongCharacterString<'a> {
     type T = Option<&'a str>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x44;
 }
-impl<'a> ZCLCompatibleType for LongCharacterString<'a> {
+impl<'a> ZclCompatibleType for LongCharacterString<'a> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref x) => x.len() + 2,
@@ -154,12 +163,12 @@ impl<'a> ZCLCompatibleType for LongCharacterString<'a> {
 }
 
 pub struct Array<'a, T>(Option<&'a [T]>);
-impl<'a, T: ZCLCompatibleType> ZCLType for Array<'a, T> {
+impl<'a, T: ZclCompatibleType> ZclType for Array<'a, T> {
     type T = Option<&'a [T]>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x48;
 }
-impl<'a, T: ZCLCompatibleType> ZCLCompatibleType for Array<'a, T> {
+impl<'a, T: ZclCompatibleType> ZclCompatibleType for Array<'a, T> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref xs) => 2 + xs.iter().map(|x| x.len()).sum::<usize>(),
@@ -168,18 +177,18 @@ impl<'a, T: ZCLCompatibleType> ZCLCompatibleType for Array<'a, T> {
     }
 }
 
-pub trait StructureCompatibleType: ZCLCompatibleType {
-    // u16 is required for Structures by the ZCL spec
+pub trait StructureCompatibleType: ZclCompatibleType {
+    // u16 is required for Structures by the Zcl spec
     fn num_members(&self) -> u16;
 }
 
 pub struct Structure<T>(Option<T>);
-impl<T: StructureCompatibleType> ZCLType for Structure<T> {
+impl<T: StructureCompatibleType> ZclType for Structure<T> {
     type T = Option<T>;
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x4c;
 }
-impl<T: StructureCompatibleType> ZCLCompatibleType for Structure<T> {
+impl<T: StructureCompatibleType> ZclCompatibleType for Structure<T> {
     fn len(&self) -> usize {
         match self.0 {
             Some(ref x) => x.num_members() as usize + 2,
@@ -204,12 +213,12 @@ impl TimeOfDay {
         hundredths: 0xff,
     };
 }
-impl ZCLType for TimeOfDay {
+impl ZclType for TimeOfDay {
     type T = TimeOfDay;
     const NON_VALUE: Option<Self::T> = Some(TimeOfDay::INVALID);
     const ID: u8 = 0xe0;
 }
-impl ZCLCompatibleType for TimeOfDay {
+impl ZclCompatibleType for TimeOfDay {
     fn len(&self) -> usize {
         0x4
     }
@@ -235,12 +244,12 @@ impl Date {
         day_of_week: 0xff,
     };
 }
-impl ZCLType for Date {
+impl ZclType for Date {
     type T = Date;
     const NON_VALUE: Option<Self::T> = Some(Date::INVALID);
     const ID: u8 = 0xe1;
 }
-impl ZCLCompatibleType for Date {
+impl ZclCompatibleType for Date {
     fn len(&self) -> usize {
         0x4
     }
