@@ -1,41 +1,91 @@
 enum8 PowerSource {
-    0x00 Unknown
-    0x01 Mains1Phase
-    0x02 Mains3Phase
-    0x03 Battery
-    0x04 DcSource
-    0x05 EmergencyMainsConstantlyPowered
-    0x06 EmergencyMainsAndTransferSwitch
-    0x80 UnknownWithBackupBattery
-    0x81 Mains1PhaseWithBackupBattery
-    0x82 Mains3PhaseWithBackupBattery
-    0x83 BatteryWithBackupBattery
-    0x84 DcSourceWithBackupBattery
-    0x85 EmergencyMainsConstantlyPoweredWithBackupBattery
-    0x86 EmergencyMainsAndTransferSwitchWithBackupBattery
+  0x00 Unknown
+  0x01 Mains1Phase
+  0x02 Mains3Phase
+  0x03 Battery
+  0x04 DcSource
+  0x05 EmergencyMainsConstantlyPowered
+  0x06 EmergencyMainsAndTransferSwitch
+  0x80 UnknownWithBackupBattery
+  0x81 Mains1PhaseWithBackupBattery
+  0x82 Mains3PhaseWithBackupBattery
+  0x83 BatteryWithBackupBattery
+  0x84 DcSourceWithBackupBattery
+  0x85 EmergencyMainsConstantlyPoweredWithBackupBattery
+  0x86 EmergencyMainsAndTransferSwitchWithBackupBattery
+}
+
+enum8 GenericDeviceClass {
+  0x00 Lighting
+}
+
+enum8 GenericDeviceType {
+  0x00 Incandescent
+  0x01 SpotlightHalogen
+  0x02 HalogenBulb
+  0x03 Cfl
+  0x04 LinearFluorescent
+  0x05 LedBulb
+  0x06 SpotlightLed
+  0x07 LedStrip
+  0x08 LedTube
+  0x09 GenericIndoorLightFixture
+  0x0a GenericOutdoorLightFixture
+  0x0b PendantFixture
+  0x0c FloorStandingLightFixture
+  0xe0 GenericController
+  0xe1 WallSwitch
+  0xe2 PortableRemoteController
+  0xe3 MotionSensorOrLightSensor
+  0xe4 ReservedE4
+  0xe5 ReservedE5
+  0xe6 ReservedE6
+  0xe7 ReservedE7
+  0xe8 ReservedE8
+  0xe9 ReservedE9
+  0xea ReservedEA
+  0xeb ReservedEB
+  0xec ReservedEC
+  0xed ReservedED
+  0xef ReservedEF
+  0xf0 GenericActuator
+  0xf1 WallSocket
+  0xf2 GatewayOrBridge
+  0xf3 PlugInUnit
+  0xf4 RetrofitActuator
+}
+
+enum8 ProductCode {
+  0x00 ManufacturerDefined
+  0x01 InternationalArticleNumber
+  0x02 GlobalTradeItemNumber
+  0x03 UniversalProductCode
+  0x04 StockKeepingUnit
 }
 
 cluster Basic 0x0000 {
-	#    id     name                       type    min  max   access default mandatory
-	attr 0x0000 ZclVersion                 uint8   0x00 0xff  R      8       M
-	attr 0x0001 ApplicationVersion         uint8   0x00 0xff  R      0       O
-	attr 0x0002 StackVersion               uint8   0x00 0xff  R      0       O
-	attr 0x0003 HwVersion                  uint8   0x00 0xff  R      0       O
-	attr 0x0004 ManufacturerName           string  0    32    R      ""      O
-	attr 0x0005 ModelIdentifier            string  0    32    R      ""      O
-	attr 0x0006 DateCode                   string  0    16    R      ""      O
-	attr 0x0007 PowerSource                enum8   0x00 0xff  R      0x00    M
-	attr 0x0008 GenericDeviceClass         enum8   0x00 0xff  R      0xff    O
-	attr 0x0009 GenericDeviceType          enum8   0x00 0xff  R      0xff    O
-	attr 0x000a ProductCode                octstr  -    -     R      &[]     O
-	attr 0x000b ProductUrl                 string  -    -     R      ""      O
-	attr 0x000c ManufacturerVersionDetails string  -    -     R      ""      O
-	attr 0x000d SerialNumber               string  -    -     R      ""      O
-	attr 0x000e ProductLabel               string  -    -     R      ""      O
-	attr 0x0010 LocationDescription        string  0    16    RW     ""      O
-	attr 0x0011 PhysicalEnvironment        enum8   -    -     RW     0       O
-	attr 0x0012 DeviceEnabled              bool    -    -     RW     true    O
-	attr 0x0013 AlarmMask                  map8    0    3     RW     0       O
-	attr 0x0014 DisableLocalConfig         map8    0    3     RW     0       O
-	attr 0x4000 SwBuildId                  string  0    16    R      ""      O
+  #    id     name                       type    min  max   access default mandatory
+  attr 0x0000 ZclVersion                 uint8   0x00 0xff  R      8       M
+  attr 0x0001 ApplicationVersion         uint8   0x00 0xff  R      0       O
+  attr 0x0002 StackVersion               uint8   0x00 0xff  R      0       O
+  attr 0x0003 HwVersion                  uint8   0x00 0xff  R      0       O
+  attr 0x0004 ManufacturerName           string  0    32    R      ""      O
+  attr 0x0005 ModelIdentifier            string  0    32    R      ""      O
+  attr 0x0006 DateCode                   string  0    16    R      ""      O
+  attr 0x0007 PowerSource                enum8   0x00 0xff  R      0x00    M
+  attr 0x0008 GenericDeviceClass         enum8   0x00 0xff  R      0xff    O
+  attr 0x0009 GenericDeviceType          enum8   0x00 0xff  R      0xff    O
+  attr 0x000a ProductCode                octstr  -    -     R      &[]     O
+  attr 0x000b ProductUrl                 string  -    -     R      ""      O
+  attr 0x000c ManufacturerVersionDetails string  -    -     R      ""      O
+  attr 0x000d SerialNumber               string  -    -     R      ""      O
+  attr 0x000e ProductLabel               string  -    -     R      ""      O
+  attr 0x0010 LocationDescription        string  0    16    RW     ""      O
+  attr 0x0011 PhysicalEnvironment        enum8   -    -     RW     0       O
+  attr 0x0012 DeviceEnabled              bool    -    -     RW     true    O
+  attr 0x0013 AlarmMask                  map8    0    3     RW     0       O
+  attr 0x0014 DisableLocalConfig         map8    0    3     RW     0       O
+  attr 0x4000 SwBuildId                  string  0    16    R      ""      O
 }
+
+# vim: set ft=ruby:

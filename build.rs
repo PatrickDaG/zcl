@@ -197,9 +197,21 @@ fn generate_attribute_code(attr: &Attribute) -> TokenStream {
     let rust_type = &attr.rust_type;
     let default = match attr.default.as_str() {
         "-" => quote! { None },
+        "None" => {
+            quote! { Some(#rust_type(None)) }
+        }
         def => {
             let default: Expr = syn::parse_str(def).unwrap();
-            quote! { Some(#rust_type(#default)) }
+            match attr.spec_type.as_str() {
+                "enum8" | "enum16" => {
+                    let ident = format_ident!("{}", attr.name);
+                    quote! { Some(#rust_type(#ident::from_value(#default))) }
+                }
+                "octstr" | "string" | "octstr16" | "string16" | "bool" => {
+                    quote! { Some(#rust_type(Some(#default))) }
+                }
+                _ => quote! { Some(#rust_type(#default)) },
+            }
         }
     };
     let min = parse_bound(attr, &attr.min);
@@ -214,7 +226,7 @@ fn generate_attribute_code(attr: &Attribute) -> TokenStream {
 
     let name_ident = format_ident!("{}", name.to_case(Case::UpperSnake));
 
-    quote! {
+    let attr_def = quote! {
         pub const #name_ident: Attribute<'static, #rust_type> = Attribute {
             code: #id,
             name: #name,
@@ -228,6 +240,15 @@ fn generate_attribute_code(attr: &Attribute) -> TokenStream {
             min: #min,
             max: #max,
         };
+    };
+
+    let attr_def_str =
+        prettyplease::unparse(&syn::parse_file(attr_def.to_string().as_str()).unwrap());
+    quote! {
+        #[doc = "```rust"]
+        #[doc = #attr_def_str]
+        #[doc = "```"]
+        #attr_def
     }
 }
 
@@ -250,7 +271,6 @@ fn generate_cluster_struct(cluster: &Cluster) -> TokenStream {
     });
 
     let n_attrs = cluster.attributes.len();
-
     quote! {
         pub struct #struct_name {
             #(#fields)*
@@ -268,6 +288,7 @@ fn generate_cluster_struct(cluster: &Cluster) -> TokenStream {
 
 fn generate_enum8(enum8: &Enum) -> TokenStream {
     let ident = format_ident!("{}", enum8.name.to_case(Case::UpperCamel));
+    let repr_type = &enum8.repr_type;
     let variants = enum8
         .variants
         .iter()
@@ -280,17 +301,44 @@ fn generate_enum8(enum8: &Enum) -> TokenStream {
         })
         .collect::<Vec<_>>();
 
+    let from_value_arms = enum8
+        .variants
+        .iter()
+        .map(|EnumVariant { value, name }| {
+            let name = format_ident!("{}", name.to_case(Case::UpperCamel));
+            let value: Expr = syn::parse_str(value).unwrap();
+            quote! {
+                #value => Ok(Self::#name),
+            }
+        })
+        .collect::<Vec<_>>();
+
     quote! {
-        #[repr(u8)]
+        #[repr(#repr_type)]
         #[derive(PartialEq, Debug, Copy, Clone)]
         pub enum #ident {
             #(#variants)*
-            None = u8::MAX,
-            Invalid(u8),
+            None = #repr_type::MAX,
         }
 
         impl crate::types::ZclEnum for #ident {
             const NON_VALUE: Self = Self::None;
+        }
+
+        impl #ident {
+            pub const fn try_from_value(value: #repr_type) -> Result<Self, ()> {
+                match value {
+                    #(#from_value_arms)*
+                    _ => Err(())
+                }
+            }
+
+            pub const fn from_value(value: #repr_type) -> Self {
+                match Self::try_from_value(value) {
+                    Ok(x) => x,
+                    Err => panic!("Failed to convert value to enum"),
+                }
+            }
         }
     }
 }
@@ -306,6 +354,7 @@ fn main() {
         if path.extension().map(|ext| ext == "txt").unwrap_or(false) {
             let filename_stem = path.file_stem().unwrap().to_string_lossy();
             let mod_name = format_ident!("{}", filename_stem);
+            println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
             let (clusters, enum8s) = parse_file(&path.to_string_lossy());
 
             let mut mod_content = TokenStream::new();
@@ -323,6 +372,7 @@ fn main() {
             let wrapped_mod = quote! {
                 pub mod #mod_name {
                     use crate::types::*;
+                    use crate::types::attribute::*;
                     #mod_content
                 }
             };
@@ -340,10 +390,12 @@ fn main() {
     };
 
     // Write to generated.rs
-    let out_path = PathBuf::from("/tmp/a.rs");
-    fs::write(&out_path, prettyplease::unparse(&tokens)).unwrap();
-    panic!("aa");
-
-    // Watch for changes
-    println!("cargo:rerun-if-changed=clusters/");
+    let out_path = PathBuf::from(std::env::var("OUT_DIR").expect("OUT_DIR not set"));
+    fs::write(
+        out_path.join("generated.rs"),
+        prettyplease::unparse(&tokens),
+    )
+    .unwrap();
+    // let out_path = PathBuf::from("/tmp/a.rs");
+    // fs::write(&out_path, prettyplease::unparse(&tokens)).unwrap();
 }

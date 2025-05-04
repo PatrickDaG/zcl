@@ -1,9 +1,9 @@
-include!(concat!(env!("OUT_DIR"), "/generated.rs"));
-
 use thiserror::Error;
 
 pub mod attributes;
 pub mod types;
+
+include!(concat!(env!("OUT_DIR"), "/generated.rs"));
 
 #[derive(Error, PartialEq, Debug, Copy, Clone)]
 pub enum ZclError {
