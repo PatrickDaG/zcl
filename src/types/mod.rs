@@ -1,3 +1,5 @@
+pub mod attribute;
+
 pub trait ZclCompatibleType {
     fn len(&self) -> usize;
     //fn to_bytes(self, data: &mut [u8]) -> Result<(), ZclError>;

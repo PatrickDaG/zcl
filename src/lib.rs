@@ -1,5 +1,4 @@
 use thiserror::Error;
-pub mod attribute;
 pub mod types;
 
 #[derive(Error, Debug)]
@@ -54,10 +53,10 @@ fn define_attribute_raw(
         #[doc = concat!("    max: ", stringify!($max), ",")]
         #[doc = "}"]
         #[doc = "```"]
-        pub const {{name_constant_case}}: crate::attribute::Attribute<'static, $typ> = crate::attribute::Attribute {
+        pub const {{name_constant_case}}: crate::types::attribute::Attribute<'static, $typ> = crate::types::attribute::Attribute {
             code: $code,
             name: stringify!($name),
-            side: crate::attribute::AttributeSide::Server,
+            side: crate::types::attribute::AttributeSide::Server,
             writable: {{writable}},
             readable: {{readable}},
             reportable: {{reportable}},
@@ -76,8 +75,8 @@ macro_rules! define_attr {
             $code,
             $name,
             crate::types::$typ,
-            crate::attribute::AttributeRange::Value(crate::types::$typ($min)),
-            crate::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            crate::types::attribute::AttributeRange::Value(crate::types::$typ($min)),
+            crate::types::attribute::AttributeRange::Value(crate::types::$typ($max)),
             $flags,
             None,
             $optional
@@ -89,8 +88,8 @@ macro_rules! define_attr {
             $code,
             $name,
             crate::types::$typ,
-            crate::attribute::AttributeRange::Value(crate::types::$typ($min)),
-            crate::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            crate::types::attribute::AttributeRange::Value(crate::types::$typ($min)),
+            crate::types::attribute::AttributeRange::Value(crate::types::$typ($max)),
             $flags,
             Some(crate::types::$typ($default)),
             $optional
@@ -104,8 +103,8 @@ macro_rules! define_attr_enum {
             $code,
             $name,
             crate::types::$typ<$enum>,
-            crate::attribute::AttributeRange::Ignore,
-            crate::attribute::AttributeRange::Ignore,
+            crate::types::attribute::AttributeRange::Ignore,
+            crate::types::attribute::AttributeRange::Ignore,
             $flags,
             None,
             $optional
@@ -117,8 +116,8 @@ macro_rules! define_attr_enum {
             $code,
             $name,
             crate::types::$typ<$enum>,
-            crate::attribute::AttributeRange::Ignore,
-            crate::attribute::AttributeRange::Ignore,
+            crate::types::attribute::AttributeRange::Ignore,
+            crate::types::attribute::AttributeRange::Ignore,
             $flags,
             Some(crate::types::$typ($enum::$default)),
             $optional
@@ -143,11 +142,13 @@ macro_rules! define_enum {
     };
 }
 
-pub mod globals {
-    define_attr!(0xfffd ClusterRevision U16 0x0001 0xfffe R 0x0000 M);
+pub mod attributes {
+    pub mod global {
+        define_attr!(0xfffd ClusterRevision U16 0x0001 0xfffe R 0x0000 M);
 
-    define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
-    define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
+        define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
+        define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
+    }
 }
 
 #[repr(u8)]
