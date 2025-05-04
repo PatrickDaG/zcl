@@ -137,3 +137,70 @@ pub mod global {
     define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
     define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
 }
+
+macro_rules! define_cluster {
+    ($cluster_name:ident, $cluster_id:literal, [
+        $( ($variant:ident $id:literal $name:ident $typ:ident $($value:tt)+)),* $(,)?
+    ]) => { paste::paste! {
+        pub mod [<$cluster_name:snake:lower>] {
+        pub struct [< $cluster_name Attrs >] {
+            $(pub [<$name:snake:lower>]: $crate::types::attribute::Attribute<'static, $crate::types::$typ>,)+
+        }
+        impl [< $cluster_name Attrs >] {
+            pub fn attrs(&self) -> [(&'static str, &'static str); 1] {
+                [
+                $((stringify!($name), stringify!($typ)),)+
+                ]
+            }
+        }
+        $(
+        define_cluster!(@expand $variant $id $name $typ $($value)+);
+        )*
+        }
+
+        #[doc = "```rust"]
+        #[doc = concat!(
+            "Cluster {"
+        )]
+        #[doc = concat!("    code: ", stringify!($cluster_id), ",")]
+        #[doc = concat!("    name: \"", stringify!($cluster_name), "\",")]
+        #[doc = concat!("    meta: ", stringify!([<$cluster_name:snake:lower>]), "::", stringify!([< $cluster_name Attrs >]), " {")]
+        $(
+        #[doc = concat!("        ", stringify!([<$name:snake:lower>]), ": ", stringify!([<$cluster_name:snake:lower>]), "::", stringify!([<$name:snake:upper>]), ",")]
+        )*
+        #[doc = "    }"]
+        #[doc = "}"]
+        #[doc = "```"]
+        $(
+        #[doc = concat!(stringify!([<$name:snake:lower>]), ": [`", stringify!([<$cluster_name:snake:lower>]), "::", stringify!([<$name:snake:upper>]), "`],")]
+        )*
+        pub const [< $cluster_name:snake:upper _CLUSTER >]: $crate::Cluster< [<$cluster_name:snake:lower>]::[< $cluster_name Attrs >]> = $crate::Cluster {
+            code: $cluster_id,
+            name: stringify!($cluster_name),
+            meta: [<$cluster_name:snake:lower>]::[< $cluster_name Attrs >] {
+            $([<$name:snake:lower>]: [<$cluster_name:snake:lower>]::[<$name:snake:upper>],)*
+            }
+        };
+    }};
+    (@expand attr $($a:tt)+) => {
+        define_attr!($($a)+);
+    } ;
+    (@expand attr_enum $($a:tt)+) => {
+        define_attr_enum!($($a)+);
+
+    }  ;
+}
+// struct BASIC_CLUSTER_ATTRS {
+//     ZCLVersion: U8
+// }
+//
+// const BASIC: CLUSTER<BASIC_CLUSTER_ATTRS> = {
+// }
+pub mod general {
+    define_cluster! {
+        Basic, 0x0000,
+        [
+        (attr 0x0000 ZclVersion U8 0x00 0xff R 8 M )
+        ]
+    }
+}
