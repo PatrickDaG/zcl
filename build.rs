@@ -1,13 +1,11 @@
 use convert_case::{Case, Casing};
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote};
-use std::env;
 use std::fs::{self, File};
-use std::io::{BufRead, BufReader, Write};
+use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use syn::{Expr, Lit, parse_quote};
+use syn::{Expr, Lit, Type, parse_quote};
 
-#[derive(Debug)]
 struct Attribute {
     id: String,
     name: String,
@@ -20,18 +18,17 @@ struct Attribute {
     mandatory: String,
 }
 
-#[derive(Debug)]
 struct EnumVariant {
     value: String,
     name: String,
 }
 
-#[derive(Debug)]
-struct Enum8 {
+struct Enum {
+    repr_type: Type,
+    name: String,
     variants: Vec<EnumVariant>,
 }
 
-#[derive(Debug)]
 struct Cluster {
     name: String,
     id: String,
@@ -107,23 +104,27 @@ fn kind_to_type(ident: &str, kind: &str) -> TokenStream {
     }
 }
 
-fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum8>) {
+fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum>) {
     let file = File::open(filename).expect("Failed to open file");
     let reader = BufReader::new(file);
 
     let mut clusters = Vec::new();
-    let mut enum8s = Vec::new();
+    let mut enums = Vec::new();
 
     let mut current_cluster: Option<Cluster> = None;
-    let mut current_enum8: Option<Enum8> = None;
+    let mut current_enum: Option<Enum> = None;
 
     for line in reader.lines() {
         let line = line.unwrap().trim().to_string();
 
         if line.starts_with("#") || line.is_empty() {
             continue;
-        } else if line.starts_with("enum8") {
-            current_enum8 = Some(Enum8 {
+        } else if line.starts_with("enum") {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            current_enum = Some(Enum {
+                repr_type: syn::parse_str(&format!("u{}", parts[0].strip_prefix("enum").unwrap()))
+                    .unwrap(),
+                name: parts[1].to_string(),
                 variants: Vec::new(),
             });
         } else if line.starts_with("cluster") {
@@ -153,19 +154,25 @@ fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum8>) {
                     cluster.attributes.push(attr);
                 }
             }
-        } else if current_enum8.is_some() {
-            // TODO: insert
         } else if line == "}" {
             if let Some(cluster) = current_cluster.take() {
                 clusters.push(cluster);
             }
-            if let Some(enum8) = current_enum8.take() {
-                enum8s.push(enum8);
+            if let Some(en) = current_enum.take() {
+                enums.push(en);
+            }
+        } else if current_enum.is_some() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if let Some(en) = current_enum.as_mut() {
+                en.variants.push(EnumVariant {
+                    value: parts[0].to_string(),
+                    name: parts[1].to_string(),
+                });
             }
         }
     }
 
-    (clusters, enum8s)
+    (clusters, enums)
 }
 
 fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
@@ -183,8 +190,6 @@ fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
         }
     }
 }
-// let min: Expr = syn::parse_str(&attr.min).unwrap();
-// let max: Expr = syn::parse_str(&attr.max).unwrap();
 
 fn generate_attribute_code(attr: &Attribute) -> TokenStream {
     let id: Lit = syn::parse_str(&attr.id).unwrap();
@@ -261,6 +266,35 @@ fn generate_cluster_struct(cluster: &Cluster) -> TokenStream {
     }
 }
 
+fn generate_enum8(enum8: &Enum) -> TokenStream {
+    let ident = format_ident!("{}", enum8.name.to_case(Case::UpperCamel));
+    let variants = enum8
+        .variants
+        .iter()
+        .map(|EnumVariant { value, name }| {
+            let name = format_ident!("{}", name.to_case(Case::UpperCamel));
+            let value: Expr = syn::parse_str(value).unwrap();
+            quote! {
+                #name = #value,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    quote! {
+        #[repr(u8)]
+        #[derive(PartialEq, Debug, Copy, Clone)]
+        pub enum #ident {
+            #(#variants)*
+            None = u8::MAX,
+            Invalid(u8),
+        }
+
+        impl crate::types::ZclEnum for #ident {
+            const NON_VALUE: Self = Self::None;
+        }
+    }
+}
+
 fn main() {
     let mut generated = TokenStream::new();
     let cluster_dir = std::fs::read_dir("clusters").expect("Failed to read clusters directory");
@@ -275,18 +309,15 @@ fn main() {
             let (clusters, enum8s) = parse_file(&path.to_string_lossy());
 
             let mut mod_content = TokenStream::new();
+            for enum8 in &enum8s {
+                mod_content.extend(generate_enum8(enum8));
+            }
+
             for cluster in &clusters {
                 for attr in &cluster.attributes {
                     mod_content.extend(generate_attribute_code(attr));
                 }
                 mod_content.extend(generate_cluster_struct(cluster));
-            }
-
-            for enum8 in &enum8s {
-                for variant in &enum8.variants {
-                    mod_content.extend(generate_enum8_variant_code(variant));
-                }
-                mod_content.extend(generate_enum8(enum8));
             }
 
             let wrapped_mod = quote! {
@@ -300,17 +331,15 @@ fn main() {
         }
     }
 
+    // let out_path = PathBuf::from("/tmp/a.rs");
+    // fs::write(&out_path, generated.to_string()).unwrap();
+    // panic!("aa");
+
     let tokens = parse_quote! {
         #generated
     };
 
     // Write to generated.rs
-    // let out_path = PathBuf::from(env::var("OUT_DIR").expect("OUT_DIR not set"));
-    // fs::write(
-    //     out_path.join("generated.rs"),
-    //     prettyplease::unparse(&tokens),
-    // )
-    // .unwrap();
     let out_path = PathBuf::from("/tmp/a.rs");
     fs::write(&out_path, prettyplease::unparse(&tokens)).unwrap();
     panic!("aa");
