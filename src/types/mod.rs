@@ -110,10 +110,10 @@ impl<'a> ZclType for OctetString<'a> {
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x41;
 }
-impl<'a> ZclCompatibleType for OctetString<'a> {
+impl ZclCompatibleType for OctetString<'_> {
     fn len(&self) -> usize {
         match self.0 {
-            Some(ref x) => x.len() + 1,
+            Some(x) => x.len() + 1,
             None => 1,
         }
     }
@@ -125,10 +125,10 @@ impl<'a> ZclType for CharacterString<'a> {
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x42;
 }
-impl<'a> ZclCompatibleType for CharacterString<'a> {
+impl ZclCompatibleType for CharacterString<'_> {
     fn len(&self) -> usize {
         match self.0 {
-            Some(ref x) => x.len() + 1,
+            Some(x) => x.len() + 1,
             None => 1,
         }
     }
@@ -140,10 +140,10 @@ impl<'a> ZclType for LongOctetString<'a> {
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x43;
 }
-impl<'a> ZclCompatibleType for LongOctetString<'a> {
+impl ZclCompatibleType for LongOctetString<'_> {
     fn len(&self) -> usize {
         match self.0 {
-            Some(ref x) => x.len() + 2,
+            Some(x) => x.len() + 2,
             None => 2,
         }
     }
@@ -155,10 +155,10 @@ impl<'a> ZclType for LongCharacterString<'a> {
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x44;
 }
-impl<'a> ZclCompatibleType for LongCharacterString<'a> {
+impl ZclCompatibleType for LongCharacterString<'_> {
     fn len(&self) -> usize {
         match self.0 {
-            Some(ref x) => x.len() + 2,
+            Some(x) => x.len() + 2,
             None => 2,
         }
     }
@@ -170,10 +170,10 @@ impl<'a, T: ZclCompatibleType> ZclType for Array<'a, T> {
     const NON_VALUE: Option<Self::T> = Some(None);
     const ID: u8 = 0x48;
 }
-impl<'a, T: ZclCompatibleType> ZclCompatibleType for Array<'a, T> {
+impl<T: ZclCompatibleType> ZclCompatibleType for Array<'_, T> {
     fn len(&self) -> usize {
         match self.0 {
-            Some(ref xs) => 2 + xs.iter().map(|x| x.len()).sum::<usize>(),
+            Some(xs) => 2 + xs.iter().map(|x| x.len()).sum::<usize>(),
             None => 2,
         }
     }
