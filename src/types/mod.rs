@@ -75,7 +75,7 @@ basic_type!(I56, i64, Some(0xff80000000000000u64 as i64), 0x2e, 0x7);
 basic_type!(I64, i64, Some(0x8000000000000000u64 as i64), 0x2f, 0x8);
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct Enum8<T: ZclEnum>(T);
+pub struct Enum8<T: ZclEnum>(pub T);
 impl<T: ZclEnum> ZclType for Enum8<T> {
     type T = T;
     const NON_VALUE: Option<Self::T> = Some(T::NON_VALUE);
@@ -88,7 +88,7 @@ impl<T: ZclEnum> ZclCompatibleType for Enum8<T> {
 }
 
 #[derive(PartialEq, Debug, Copy, Clone)]
-pub struct Enum16<T: ZclEnum>(T);
+pub struct Enum16<T: ZclEnum>(pub T);
 impl<T: ZclEnum> ZclType for Enum16<T> {
     type T = T;
     const NON_VALUE: Option<Self::T> = Some(T::NON_VALUE);
@@ -104,7 +104,7 @@ impl<T: ZclEnum> ZclCompatibleType for Enum16<T> {
 basic_type!(F32, f32, Some(f32::NAN), 0x39, 0x4);
 basic_type!(F64, f64, Some(f64::NAN), 0x3a, 0x8);
 
-pub struct OctetString<'a>(Option<&'a [u8]>);
+pub struct OctetString<'a>(pub Option<&'a [u8]>);
 impl<'a> ZclType for OctetString<'a> {
     type T = Option<&'a [u8]>;
     const NON_VALUE: Option<Self::T> = Some(None);
@@ -134,7 +134,7 @@ impl ZclCompatibleType for CharacterString<'_> {
     }
 }
 
-pub struct LongOctetString<'a>(Option<&'a [u8]>);
+pub struct LongOctetString<'a>(pub Option<&'a [u8]>);
 impl<'a> ZclType for LongOctetString<'a> {
     type T = Option<&'a [u8]>;
     const NON_VALUE: Option<Self::T> = Some(None);
@@ -149,7 +149,7 @@ impl ZclCompatibleType for LongOctetString<'_> {
     }
 }
 
-pub struct LongCharacterString<'a>(Option<&'a str>);
+pub struct LongCharacterString<'a>(pub Option<&'a str>);
 impl<'a> ZclType for LongCharacterString<'a> {
     type T = Option<&'a str>;
     const NON_VALUE: Option<Self::T> = Some(None);
@@ -164,7 +164,7 @@ impl ZclCompatibleType for LongCharacterString<'_> {
     }
 }
 
-pub struct Array<'a, T>(Option<&'a [T]>);
+pub struct Array<'a, T>(pub Option<&'a [T]>);
 impl<'a, T: ZclCompatibleType> ZclType for Array<'a, T> {
     type T = Option<&'a [T]>;
     const NON_VALUE: Option<Self::T> = Some(None);

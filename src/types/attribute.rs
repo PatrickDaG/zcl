@@ -2,7 +2,7 @@ use crate::types::ZclType;
 
 #[derive(PartialEq, Debug, Copy, Clone)]
 pub enum AttributeRange<T: ZclType> {
-    /// This range has no meaning, e.g. min/max of an enumeration.
+    /// This range has no meaning, e.g. min/max of an enumeration
     Ignore,
     /// Another attribute with the given attribute id specifies this value
     Attribute(u16),
@@ -33,3 +33,9 @@ pub struct Attribute<'a, T: ZclType> {
     pub min: AttributeRange<T>,
     pub max: AttributeRange<T>,
 }
+
+// impl Attribute<> {
+//     fn ty(&self) -> &'static str {
+//         T::ty() // e.g. crate::types::U16
+//     }
+// }

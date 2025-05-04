@@ -24,11 +24,7 @@ fn define_attribute_raw(
 
     crabtime::output! {
         #[doc = "```rust"]
-        #[doc = concat!(
-            "Attribute<'static, ",
-            stringify!($typ),
-            "> {"
-        )]
+        #[doc = "Attribute {"]
         #[doc = concat!("    code: ", stringify!($code), ",")]
         #[doc = concat!("    name: \"", stringify!($name), "\",")]
         #[doc = "    side: AttributeSide::Server,"]
@@ -213,13 +209,13 @@ macro_rules! define_cluster {
     };
     (@expand attr_string $($a:tt)+) => {
         define_attr_string!($($a)+);
-    } ;
+    };
 }
 
 pub mod global {
     define_attr!(0xfffd ClusterRevision (crate::types::U16) 0x0001 0xfffe R 0x0000 M);
 
-    define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
+    define_enum!(u8, ReportingStatus, { Pending = 0, AttributeReportingComplete = 1, });
     define_attr_enum!(0xfffe AttributeReportingStatus (crate::types::Enum8<ReportingStatus>) R None O);
 }
 
