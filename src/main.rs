@@ -13,14 +13,15 @@ pub enum ZclError {
 }
 
 #[crabtime::function]
-fn define_attr(
+fn define_attribute_raw(
     pattern!(
-        $code:literal
-        $name:ident
-        $typ:ident
-        [$min:literal $max:literal]
-        $flags:tt
-        $default:literal
+        $code:literal,
+        $name:ident,
+        $typ:ty,
+        $min:expr,
+        $max:expr,
+        $flags:tt,
+        $default:expr,
         $optional:ident
     ): _,
 ) {
@@ -52,20 +53,12 @@ fn define_attr(
         #[doc = concat!("    reportable: ", stringify!({{reportable}}), ",")]
         #[doc = concat!("    scene: ", stringify!({{scene}}), ",")]
         #[doc = concat!("    mandatory: ", stringify!({{mandatory}}), ",")]
-        #[doc = concat!(
-            "    default: ", stringify!($typ), "(", stringify!($default), "),"
-        )]
-        #[doc = concat!(
-            "    min: AttributeRange::Value(",
-            stringify!($typ), "(", stringify!($min), ")),"
-        )]
-        #[doc = concat!(
-            "    max: AttributeRange::Value(",
-            stringify!($typ), "(", stringify!($max), ")),"
-        )]
+        #[doc = concat!("    default: ", stringify!($default), ",")]
+        #[doc = concat!("    min: ", stringify!($min), ",")]
+        #[doc = concat!("    max: ", stringify!($max), ",")]
         #[doc = "}"]
         #[doc = "```"]
-        const {{name_constant_case}}: crate::attribute::Attribute<'static, crate::types::$typ> = crate::attribute::Attribute {
+        const {{name_constant_case}}: crate::attribute::Attribute<'static, $typ> = crate::attribute::Attribute {
             code: $code,
             name: stringify!($name),
             side: crate::attribute::AttributeSide::Server,
@@ -74,54 +67,91 @@ fn define_attr(
             reportable: {{reportable}},
             scene: {{scene}},
             mandatory: {{mandatory}},
-            default: crate::types::$typ($default),
-            min: crate::attribute::AttributeRange::Value(crate::types::$typ($min)),
-            max: crate::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            default: $default,
+            min: $min,
+            max: $max,
         };
     }
 }
 
-mod globals {
-    define_attr!(0xfffd ClusterRevision U16 [0x0001 0xfffe] R 0 M);
+macro_rules! define_attr {
+    ($code:literal $name:ident $typ:ident $min:literal $max:literal $flags:tt None $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::$typ,
+            crate::attribute::AttributeRange::Value(crate::types::$typ($min)),
+            crate::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            $flags,
+            None,
+            $optional
+        );
+    };
 
-    // use crate::types;
-    // const CLUSTER_REVISION: super::Attribute<types::U16> = super::Attribute {
-    //     code: 0xfffd,
-    //     side: crate::attribute::AttributeSide::Server,
-    //     writable: false,
-    //     readable: true,
-    //     reportable: false,
-    //     scene: false,
-    //     mandatory: true,
-    //     default: types::U16(0x0000),
-    //     min: types::U16(0x0001),
-    //     max: types::U16(0xfffe),
-    //     name: "ClusterRevision",
-    // };
-    // #[repr(u8)]
-    // pub enum ReportingStatus {
-    //     Pending = 0,
-    //     Complete = 1,
-    //     None = 0xff,
-    // }
-    //
-    // impl types::ZclEnum for ReportingStatus {
-    //     const NON_VALUE: Self = Self::None;
-    // }
-    // const ATTRIBUTE_REPORTING_STATUS: super::Attribute<types::Enum8<ReportingStatus>> =
-    //     super::Attribute {
-    //         code: todo!(),
-    //         side: todo!(),
-    //         writable: todo!(),
-    //         readable: todo!(),
-    //         reportable: todo!(),
-    //         scene: todo!(),
-    //         mandatory: todo!(),
-    //         default: todo!(),
-    //         min: todo!(),
-    //         max: todo!(),
-    //         name: todo!(),
-    //     };
+    ($code:literal $name:ident $typ:ident $min:literal $max:literal $flags:tt $default:literal $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::$typ,
+            crate::attribute::AttributeRange::Value(crate::types::$typ($min)),
+            crate::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            $flags,
+            Some(crate::types::$typ($default)),
+            $optional
+        );
+    };
+}
+
+macro_rules! define_attr_enum {
+    ($code:literal $name:ident $typ:ident $enum:ident $flags:tt None $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::$typ<$enum>,
+            crate::attribute::AttributeRange::Ignore,
+            crate::attribute::AttributeRange::Ignore,
+            $flags,
+            None,
+            $optional
+        );
+    };
+
+    ($code:literal $name:ident $typ:ident $enum:ident $flags:tt $default:literal $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::$typ<$enum>,
+            crate::attribute::AttributeRange::Ignore,
+            crate::attribute::AttributeRange::Ignore,
+            $flags,
+            Some(crate::types::$typ($enum::$default)),
+            $optional
+        );
+    };
+}
+
+macro_rules! define_enum8 {
+    ($name:ident, {
+        $($variant:ident = $value:expr),* $(,)?
+    }) => {
+        #[repr(u8)]
+        #[derive(PartialEq, Debug, Copy, Clone)]
+        pub enum $name {
+            $($variant = $value),*,
+            None = 0xff,
+        }
+
+        impl crate::types::ZclEnum for $name {
+            const NON_VALUE: Self = Self::None;
+        }
+    };
+}
+
+mod globals {
+    define_attr!(0xfffd ClusterRevision U16 0x0001 0xfffe R 0x0000 M);
+
+    define_enum8!(ReportingStatus, { Pending = 0, Complete = 1, });
+    define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
 }
 
 #[repr(u8)]
