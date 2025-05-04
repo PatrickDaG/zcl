@@ -3,7 +3,7 @@ fn define_attribute_raw(
     pattern!(
         $code:literal,
         $name:ident,
-        $typ:ty,
+        $typ:path,
         $min:expr,
         $max:expr,
         $flags:tt,
@@ -59,39 +59,67 @@ fn define_attribute_raw(
 }
 
 macro_rules! define_attr {
-    ($code:literal $name:ident $typ:ident $min:literal $max:literal $flags:tt None $optional:ident) => {
+    ($code:literal $name:ident ($typ:path) $min:literal $max:literal $flags:tt None $optional:ident) => {
         define_attribute_raw!(
             $code,
             $name,
-            crate::types::$typ,
-            crate::types::attribute::AttributeRange::Value(crate::types::$typ($min)),
-            crate::types::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            $typ,
+            crate::types::attribute::AttributeRange::Value($typ($min)),
+            crate::types::attribute::AttributeRange::Value($typ($max)),
             $flags,
             None,
             $optional
         );
     };
 
-    ($code:literal $name:ident $typ:ident $min:literal $max:literal $flags:tt $default:literal $optional:ident) => {
+    ($code:literal $name:ident ($typ:path) $min:literal $max:literal $flags:tt $default:literal $optional:ident) => {
         define_attribute_raw!(
             $code,
             $name,
-            crate::types::$typ,
-            crate::types::attribute::AttributeRange::Value(crate::types::$typ($min)),
-            crate::types::attribute::AttributeRange::Value(crate::types::$typ($max)),
+            $typ,
+            crate::types::attribute::AttributeRange::Value($typ($min)),
+            crate::types::attribute::AttributeRange::Value($typ($max)),
             $flags,
-            Some(crate::types::$typ($default)),
+            Some($typ($default)),
+            $optional
+        );
+    };
+}
+
+macro_rules! define_attr_string {
+    ($code:literal $name:ident ($typ:path) $min:literal $max:literal $flags:tt None $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::CharacterString,
+            crate::types::attribute::AttributeRange::Size($min),
+            crate::types::attribute::AttributeRange::Size($max),
+            $flags,
+            None,
+            $optional
+        );
+    };
+
+    ($code:literal $name:ident ($typ:path) $min:literal $max:literal $flags:tt $default:literal $optional:ident) => {
+        define_attribute_raw!(
+            $code,
+            $name,
+            crate::types::CharacterString,
+            crate::types::attribute::AttributeRange::Size($min),
+            crate::types::attribute::AttributeRange::Size($max),
+            $flags,
+            Some(crate::types::CharacterString(Some($default))),
             $optional
         );
     };
 }
 
 macro_rules! define_attr_enum {
-    ($code:literal $name:ident $typ:ident $enum:ident $flags:tt None $optional:ident) => {
+    ($code:literal $name:ident ($typ:path) $flags:tt None $optional:ident) => {
         define_attribute_raw!(
             $code,
             $name,
-            crate::types::$typ<$enum>,
+            $typ,
             crate::types::attribute::AttributeRange::Ignore,
             crate::types::attribute::AttributeRange::Ignore,
             $flags,
@@ -100,22 +128,22 @@ macro_rules! define_attr_enum {
         );
     };
 
-    ($code:literal $name:ident $typ:ident $enum:ident $flags:tt $default:literal $optional:ident) => {
+    ($code:literal $name:ident ($typ:path) $flags:tt $default:literal $optional:ident) => {
         define_attribute_raw!(
             $code,
             $name,
-            crate::types::$typ<$enum>,
+            $typ,
             crate::types::attribute::AttributeRange::Ignore,
             crate::types::attribute::AttributeRange::Ignore,
             $flags,
-            Some(crate::types::$typ($enum::$default)),
+            Some($typ($typ::T::$default)),
             $optional
         );
     };
 }
 
 macro_rules! define_enum {
-    ($typ:ty, $name:ident, {
+    ($typ:path, $name:ident, {
         $($variant:ident = $value:expr),* $(,)?
     }) => {
         #[repr($typ)]
@@ -131,30 +159,23 @@ macro_rules! define_enum {
     };
 }
 
-pub mod global {
-    define_attr!(0xfffd ClusterRevision U16 0x0001 0xfffe R 0x0000 M);
-
-    define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
-    define_attr_enum!(0xfffe AttributeReportingStatus Enum8 ReportingStatus R None O);
-}
-
 macro_rules! define_cluster {
     ($cluster_name:ident, $cluster_id:literal, [
-        $( ($variant:ident $id:literal $name:ident $typ:ident $($value:tt)+)),* $(,)?
+        $( ($variant:ident $id:literal $name:ident ($typ:path) $($value:tt)+)),* $(,)?
     ]) => { paste::paste! {
         pub mod [<$cluster_name:snake:lower>] {
         pub struct [< $cluster_name Attrs >] {
-            $(pub [<$name:snake:lower>]: $crate::types::attribute::Attribute<'static, $crate::types::$typ>,)+
+            $(pub [<$name:snake:lower>]: $crate::types::attribute::Attribute<'static, $typ>,)+
         }
         impl [< $cluster_name Attrs >] {
-            pub fn attrs(&self) -> [(&'static str, &'static str); 1] {
+            pub fn attrs(&self) -> [(&'static str, &'static str); 5] {
                 [
                 $((stringify!($name), stringify!($typ)),)+
                 ]
             }
         }
         $(
-        define_cluster!(@expand $variant $id $name $typ $($value)+);
+        define_cluster!(@expand $variant $id $name ($typ) $($value)+);
         )*
         }
 
@@ -171,8 +192,9 @@ macro_rules! define_cluster {
         #[doc = "    }"]
         #[doc = "}"]
         #[doc = "```"]
+        #[doc = ""]
         $(
-        #[doc = concat!(stringify!([<$name:snake:lower>]), ": [`", stringify!([<$cluster_name:snake:lower>]), "::", stringify!([<$name:snake:upper>]), "`],")]
+        #[doc = concat!("- ", stringify!([<$name:snake:lower>]), ": [`", stringify!([<$cluster_name:snake:lower>]), "::", stringify!([<$name:snake:upper>]), "`]")]
         )*
         pub const [< $cluster_name:snake:upper _CLUSTER >]: $crate::Cluster< [<$cluster_name:snake:lower>]::[< $cluster_name Attrs >]> = $crate::Cluster {
             code: $cluster_id,
@@ -184,23 +206,32 @@ macro_rules! define_cluster {
     }};
     (@expand attr $($a:tt)+) => {
         define_attr!($($a)+);
-    } ;
+    };
     (@expand attr_enum $($a:tt)+) => {
         define_attr_enum!($($a)+);
 
-    }  ;
+    };
+    (@expand attr_string $($a:tt)+) => {
+        define_attr_string!($($a)+);
+    } ;
 }
-// struct BASIC_CLUSTER_ATTRS {
-//     ZCLVersion: U8
-// }
-//
-// const BASIC: CLUSTER<BASIC_CLUSTER_ATTRS> = {
-// }
+
+pub mod global {
+    define_attr!(0xfffd ClusterRevision (crate::types::U16) 0x0001 0xfffe R 0x0000 M);
+
+    define_enum!(u8, ReportingStatus, { Pending = 0, Complete = 1, });
+    define_attr_enum!(0xfffe AttributeReportingStatus (crate::types::Enum8<ReportingStatus>) R None O);
+}
+
 pub mod general {
     define_cluster! {
         Basic, 0x0000,
         [
-        (attr 0x0000 ZclVersion U8 0x00 0xff R 8 M )
-        ]
+        (attr 0x0000 ZclVersion (crate::types::U8) 0x00 0xff R 8 M ),
+        (attr 0x0001 ApplicationVersion (crate::types::U8) 0x00 0xff R 0 O),
+        (attr 0x0002 StackVersion (crate::types::U8) 0x00 0xff R 0 O),
+        (attr 0x0003 HwVersion (crate::types::U8) 0x00 0xff R 0 O),
+        (attr_string 0x0004 ManufacturerName (crate::types::CharacterString<'static> ) 0 32 R "" O)
+    ]
     }
 }

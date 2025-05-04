@@ -119,7 +119,7 @@ impl<'a> ZclCompatibleType for OctetString<'a> {
     }
 }
 
-pub struct CharacterString<'a>(Option<&'a str>);
+pub struct CharacterString<'a>(pub Option<&'a str>);
 impl<'a> ZclType for CharacterString<'a> {
     type T = Option<&'a str>;
     const NON_VALUE: Option<Self::T> = Some(None);
