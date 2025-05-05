@@ -329,6 +329,7 @@ fn generate_enum8(enum8: &Enum) -> TokenStream {
             pub const fn try_from_value(value: #repr_type) -> Result<Self, ()> {
                 match value {
                     #(#from_value_arms)*
+                    #repr_type::MAX => Ok(Self::None),
                     _ => Err(())
                 }
             }
@@ -336,7 +337,7 @@ fn generate_enum8(enum8: &Enum) -> TokenStream {
             pub const fn from_value(value: #repr_type) -> Self {
                 match Self::try_from_value(value) {
                     Ok(x) => x,
-                    Err => panic!("Failed to convert value to enum"),
+                    Err(_) => panic!("Failed to convert value to enum"),
                 }
             }
         }
