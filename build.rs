@@ -33,6 +33,7 @@ struct Cluster {
     name: String,
     id: String,
     attributes: Vec<Attribute>,
+    enums: Vec<Enum>,
 }
 
 fn kind_to_type(ident: &str, kind: &str) -> TokenStream {
@@ -110,7 +111,7 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
 
     let mut global_attributes = Vec::new();
     let mut clusters = Vec::new();
-    let mut enums = Vec::new();
+    let mut global_enums = Vec::new();
 
     let mut current_cluster: Option<Cluster> = None;
     let mut current_enum: Option<Enum> = None;
@@ -134,6 +135,7 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
                 name: parts[1].to_string(),
                 id: parts[2].to_string(),
                 attributes: Vec::new(),
+                enums: Vec::new(),
             });
         } else if line.starts_with("attr") {
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -158,11 +160,14 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
                 }
             }
         } else if line == "}" {
-            if let Some(cluster) = current_cluster.take() {
-                clusters.push(cluster);
-            }
             if let Some(en) = current_enum.take() {
-                enums.push(en);
+                if let Some(cluster) = current_cluster.as_mut() {
+                    cluster.enums.push(en);
+                } else {
+                    global_enums.push(en);
+                }
+            } else if let Some(cluster) = current_cluster.take() {
+                clusters.push(cluster);
             }
         } else if current_enum.is_some() {
             let parts: Vec<&str> = line.split_whitespace().collect();
@@ -175,7 +180,7 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
         }
     }
 
-    (global_attributes, clusters, enums)
+    (global_attributes, clusters, global_enums)
 }
 
 fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
@@ -371,10 +376,21 @@ fn main() {
             }
 
             for cluster in &clusters {
-                for attr in &cluster.attributes {
-                    mod_content.extend(generate_attribute_code(attr));
+                let mut inner_mod_content = TokenStream::new();
+                let mod_name = format_ident!("{}", cluster.name);
+                for enu in &cluster.enums {
+                    inner_mod_content.extend(generate_enum8(enu));
                 }
-                mod_content.extend(generate_cluster_struct(cluster));
+                for attr in &cluster.attributes {
+                    inner_mod_content.extend(generate_attribute_code(attr));
+                }
+                inner_mod_content.extend(generate_cluster_struct(cluster));
+                mod_content.extend(quote! {
+                    pub mod #mod_name {
+                        use crate::types::*;
+                        #inner_mod_content
+                    }
+                });
             }
 
             let wrapped_mod = quote! {
