@@ -12,8 +12,7 @@ struct Attribute {
     spec_type: String,
     rust_type: TokenStream,
     rust_type_doc: String,
-    min: String,
-    max: String,
+    range: String,
     access: String,
     default: String,
     mandatory: String,
@@ -146,16 +145,67 @@ fn kind_to_type(ident: &str, kind: &str) -> (TokenStream, String) {
     }
 }
 
-fn kind_to_cast(kind: &str) -> TokenStream {
+fn kind_to_cast(litv: &LitInt, kind: &str) -> TokenStream {
+    let val: i128 = litv
+        .base10_parse()
+        .expect("Could not parse literal integer in bound");
     match kind {
-        "int8" => quote! { as u8  as i8 },
-        "int16" => quote! { as u16 as i16 },
-        "int24" => quote! { as u24 as i24 },
-        "int32" => quote! { as u32 as i32 },
-        "int40" => quote! { as u40 as i40 },
-        "int48" => quote! { as u48 as i48 },
-        "int56" => quote! { as u56 as i56 },
-        "int64" => quote! { as u64 as i64 },
+        "int8" => {
+            if val > i8::MAX as i128 {
+                quote! { as u8 as i8 }
+            } else {
+                quote! {}
+            }
+        }
+        "int16" => {
+            if val > i16::MAX as i128 {
+                quote! { as u16 as i16 }
+            } else {
+                quote! {}
+            }
+        }
+        "int24" => {
+            if val > ((1u128 << 23) - 1) as i128 {
+                quote! { as u24 as i24 }
+            } else {
+                quote! {}
+            }
+        }
+        "int32" => {
+            if val > i32::MAX as i128 {
+                quote! { as u32 as i32 }
+            } else {
+                quote! {}
+            }
+        }
+        "int40" => {
+            if val > ((1u128 << 39) - 1) as i128 {
+                quote! { as u40 as i40 }
+            } else {
+                quote! {}
+            }
+        }
+        "int48" => {
+            if val > ((1u128 << 47) - 1) as i128 {
+                quote! { as u48 as i48 }
+            } else {
+                quote! {}
+            }
+        }
+        "int56" => {
+            if val > ((1u128 << 55) - 1) as i128 {
+                quote! { as u56 as i56 }
+            } else {
+                quote! {}
+            }
+        }
+        "int64" => {
+            if val > i64::MAX as i128 {
+                quote! { as u64 as i64 }
+            } else {
+                quote! {}
+            }
+        }
         _ => quote! {},
     }
 }
@@ -203,11 +253,10 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
                     spec_type,
                     rust_type,
                     rust_type_doc,
-                    min: parts[4].to_string(),
-                    max: parts[5].to_string(),
-                    access: parts[6].to_string(),
-                    default: parts[7].to_string(),
-                    mandatory: parts[8].to_string(),
+                    range: parts[4].to_string(),
+                    access: parts[5].to_string(),
+                    default: parts[6].to_string(),
+                    mandatory: parts[7].to_string(),
                 };
                 if let Some(cluster) = current_cluster.as_mut() {
                     cluster.attributes.push(attr);
@@ -239,25 +288,41 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
     (global_attributes, clusters, global_enums)
 }
 
-fn parse_bound(attr: &Attribute, bound: &str, cluster: Option<&Cluster>) -> TokenStream {
-    match (attr.spec_type.as_str(), bound) {
-        (_, "-") => quote! { AttributeRange::Ignore },
-        ("enum8" | "enum16", _) => quote! { AttributeRange::Ignore },
-        ("octstr" | "string" | "octstr16" | "string16", v) => {
-            let v: Expr = syn::parse_str(v).unwrap();
-            quote! { AttributeRange::Size(#v) }
+fn parse_bound(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
+    match (attr.spec_type.as_str(), attr.range.as_str()) {
+        // (_, "-") => quote! { AttributeRange::Ignore },
+        (_, "value") => quote! { AttributeRange::Value },
+        (_, "full-non" | "-") => quote! { AttributeRange::FullWithNone },
+        (_, "full") => quote! { AttributeRange::Full },
+        ("octstr" | "string" | "octstr16" | "string16", _) => {
+            let s: Expr = syn::parse_str(&attr.range).unwrap();
+            quote! { AttributeRange::Size(#s) }
         }
-        (_, v) => {
-            if let Ok(v) = syn::parse_str::<LitInt>(v) {
-                let cast = kind_to_cast(&attr.spec_type);
+        _ => {
+            let (min, max) = attr.range.split_once(',').unwrap_or_else(|| {
+                panic!(
+                    "expected min,max bound but found no ',' delimiter, attribute {}",
+                    attr.name
+                )
+            });
+
+            if let (Ok(lit_min), Ok(lit_max)) =
+                (syn::parse_str::<LitInt>(min), syn::parse_str::<LitInt>(max))
+            {
+                let min_cast = kind_to_cast(&lit_min, &attr.spec_type);
+                let max_cast = kind_to_cast(&lit_max, &attr.spec_type);
                 let rust_type = &attr.rust_type;
-                quote! { AttributeRange::Value(#rust_type(#v #cast)) }
+                quote! { AttributeRange::InclusiveRange(#rust_type(#lit_min #min_cast, #lit_max #max_cast)) }
             } else if let Some(cluster) = cluster {
-                if let Some(attr) = cluster.attributes.iter().find(|x| x.name == v) {
-                    let id: Lit = syn::parse_str(&attr.id).unwrap();
-                    quote! { AttributeRange::Attribute(#id) }
+                if let (Some(min_attr), Some(max_attr)) = (
+                    cluster.attributes.iter().find(|x| x.name == min),
+                    cluster.attributes.iter().find(|x| x.name == max),
+                ) {
+                    let min_id: Lit = syn::parse_str(&min_attr.id).unwrap();
+                    let max_id: Lit = syn::parse_str(&max_attr.id).unwrap();
+                    quote! { AttributeRange::InclusiveRangeReference(#min_id, #max_id) }
                 } else {
-                    panic!("Failed finding attribute");
+                    panic!("Failed to find attributes ({},{}) for bound", min, max);
                 }
             } else {
                 panic!("Failed parsing bound");
@@ -297,8 +362,7 @@ fn generate_attribute_code(attr: &Attribute, cluster: Option<&Cluster>) -> Token
             }
         }
     };
-    let min = parse_bound(attr, &attr.min, cluster);
-    let max = parse_bound(attr, &attr.max, cluster);
+    let range = parse_bound(attr, cluster);
     let mandatory = attr.mandatory == "M";
 
     // Parse access flags
@@ -314,14 +378,13 @@ fn generate_attribute_code(attr: &Attribute, cluster: Option<&Cluster>) -> Token
             code: #id,
             name: #name,
             side: AttributeSide::Server,
-            writable: #writable,
             readable: #readable,
+            writable: #writable,
             reportable: #reportable,
             scene: #scene,
             mandatory: #mandatory,
             default: #default,
-            min: #min,
-            max: #max,
+            range: #range,
         };
     };
 
@@ -434,7 +497,6 @@ fn generate_enum8(enum8: &Enum) -> TokenStream {
         #[derive(PartialEq, Debug, Copy, Clone)]
         pub enum #ident {
             #(#variants)*
-            None = #repr_type::MAX,
         }
 
         impl crate::types::ZclEnum for #ident {
@@ -487,8 +549,8 @@ fn main() {
                 let mut inner_mod_content = TokenStream::new();
                 let mod_name = format_ident!("{}", cluster.name.to_case(Case::Snake));
                 let mut attr_table = "".to_string();
-                attr_table += "| id | name | type | min | max | access | default | mandatory |\n";
-                attr_table += "|----|------|------|-----|-----|--------|---------|-----------|\n";
+                attr_table += "| id | name | type | range | access | default | mandatory |\n";
+                attr_table += "|----|------|------|-------|--------|---------|-----------|\n";
 
                 for enu in &cluster.enums {
                     inner_mod_content.extend(generate_enum8(enu));
@@ -496,13 +558,12 @@ fn main() {
                 for attr in &cluster.attributes {
                     inner_mod_content.extend(generate_attribute_code(attr, Some(cluster)));
                     attr_table += &format!(
-                        "| {} | [{}]({mod_name}::{}) | {} | {} | {} | {} | {} | {} |\n",
+                        "| {} | [{}]({mod_name}::{}) | {} | {} | {} | {} | {} |\n",
                         attr.id,
                         attr.name,
                         attr.name.to_case(Case::UpperSnake),
                         attr.rust_type_doc,
-                        attr.min,
-                        attr.max,
+                        attr.range,
                         attr.access,
                         attr.default,
                         if attr.mandatory == "M" { "✅" } else { "❌" },
@@ -510,8 +571,13 @@ fn main() {
                 }
                 inner_mod_content.extend(generate_cluster_struct(cluster));
 
+                let cluster_desc = format!(
+                    "Holds types and constants related to the [`{}`](self::{}_CLUSTER) cluster.",
+                    cluster.name,
+                    cluster.name.to_case(Case::UpperSnake),
+                );
                 mod_content.extend(quote! {
-                    #[doc = "Holds types and constants related to the {} cluster."]
+                    #[doc = #cluster_desc]
                     #[doc = ""]
                     #[doc = "Attribute list:"]
                     #[doc = ""]
@@ -536,10 +602,6 @@ fn main() {
         }
     }
 
-    // let out_path = PathBuf::from("/tmp/a.rs");
-    // fs::write(&out_path, generated.to_string()).unwrap();
-    // panic!("aa");
-
     let tokens = parse_quote! {
         #generated
     };
@@ -551,6 +613,4 @@ fn main() {
         prettyplease::unparse(&tokens),
     )
     .unwrap();
-    // let out_path = PathBuf::from("/tmp/a.rs");
-    // fs::write(&out_path, prettyplease::unparse(&tokens)).unwrap();
 }

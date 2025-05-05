@@ -53,6 +53,7 @@ enum8 GenericDeviceType {
   0xf2 GatewayOrBridge
   0xf3 PlugInUnit
   0xf4 RetrofitActuator
+  0xff Unspecified
 }
 
 enum8 ProductCode {
@@ -172,31 +173,32 @@ enum8 PhysicalEnvironment {
   0x6f DecontaminationRoom
   0x70 Atrium
   0x71 Mirror
+  0xff UnknownEnvironment
 }
 
 cluster Basic 0x0000 {
-  #    id     name                       type    min    max    access default mandatory
-  attr 0x0000 ZclVersion                 uint8   0x00   0xff   R      8       M
-  attr 0x0001 ApplicationVersion         uint8   0x00   0xff   R      0       O
-  attr 0x0002 StackVersion               uint8   0x00   0xff   R      0       O
-  attr 0x0003 HwVersion                  uint8   0x00   0xff   R      0       O
-  attr 0x0004 ManufacturerName           string  0      32     R      ""      O
-  attr 0x0005 ModelIdentifier            string  0      32     R      ""      O
-  attr 0x0006 DateCode                   string  0      16     R      ""      O
-  attr 0x0007 PowerSource                enum8   0x00   0xff   R      0x00    M
-  attr 0x0008 GenericDeviceClass         enum8   0x00   0xff   R      0xff    O
-  attr 0x0009 GenericDeviceType          enum8   0x00   0xff   R      0xff    O
-  attr 0x000a ProductCode                octstr  -      -      R      &[]     O
-  attr 0x000b ProductUrl                 string  -      -      R      ""      O
-  attr 0x000c ManufacturerVersionDetails string  -      -      R      ""      O
-  attr 0x000d SerialNumber               string  -      -      R      ""      O
-  attr 0x000e ProductLabel               string  -      -      R      ""      O
-  attr 0x0010 LocationDescription        string  0      16     RW     ""      O
-  attr 0x0011 PhysicalEnvironment        enum8   -      -      RW     0       O
-  attr 0x0012 DeviceEnabled              bool    -      -      RW     true    O
-  attr 0x0013 AlarmMask                  map8    0      3      RW     0       O
-  attr 0x0014 DisableLocalConfig         map8    0      3      RW     0       O
-  attr 0x4000 SwBuildId                  string  0      16     R      ""      O
+  #    id     name                       type   range     access default mandatory
+  attr 0x0000 ZclVersion                 uint8  0x00,0xff R      8       M
+  attr 0x0001 ApplicationVersion         uint8  0x00,0xff R      0       O
+  attr 0x0002 StackVersion               uint8  0x00,0xff R      0       O
+  attr 0x0003 HwVersion                  uint8  0x00,0xff R      0       O
+  attr 0x0004 ManufacturerName           string 32        R      ""      O
+  attr 0x0005 ModelIdentifier            string 32        R      ""      O
+  attr 0x0006 DateCode                   string 16        R      ""      O
+  attr 0x0007 PowerSource                enum8  0x00,0xff R      0x00    M
+  attr 0x0008 GenericDeviceClass         enum8  0x00,0xff R      0xff    O
+  attr 0x0009 GenericDeviceType          enum8  0x00,0xff R      0xff    O
+  attr 0x000a ProductCode                octstr -         R      &[]     O
+  attr 0x000b ProductUrl                 string -         R      ""      O
+  attr 0x000c ManufacturerVersionDetails string -         R      ""      O
+  attr 0x000d SerialNumber               string -         R      ""      O
+  attr 0x000e ProductLabel               string -         R      ""      O
+  attr 0x0010 LocationDescription        string 16        RW     ""      O
+  attr 0x0011 PhysicalEnvironment        enum8  -         RW     0       O
+  attr 0x0012 DeviceEnabled              bool   -         RW     true    O
+  attr 0x0013 AlarmMask                  map8   0x0-0x3   RW     0       O
+  attr 0x0014 DisableLocalConfig         map8   0x0-0x3   RW     0       O
+  attr 0x4000 SwBuildId                  string 16        R      ""      O
 }
 
 enum8 BatterySize {
@@ -209,71 +211,114 @@ enum8 BatterySize {
   0x06 D
   0x07 Cr2
   0x08 Cr123a
+  0xff Unknown
 }
 
 cluster PowerConfiguration 0x0001 {
-  #    id     name                           type              min    max    access default mandatory
-  attr 0x0000 MainsVoltage                   uint16            0x0000 0xffff R      non     O
-  attr 0x0001 MainsFrequency                 uint8             0x00   0xff   R      non     O
+  #    id     name                           type              range         access default mandatory
+  attr 0x0000 MainsVoltage                   uint16            0x0000,0xffff R      non     O
+  attr 0x0001 MainsFrequency                 uint8             0x00,0xff     R      non     O
 
-  attr 0x0010 MainsAlarmMask                 map8              0x0    0x3    RW     0       O
-  attr 0x0011 MainsVoltageMinThreshold       uint16            0x0000 0xffff RW     0       O
-  attr 0x0012 MainsVoltageMaxThreshold       uint16            0x0000 0xffff RW     0xffff  O
-  attr 0x0013 MainsVoltageDwellTripPoint     uint16            0x0000 0xffff RW     0       O
+  attr 0x0010 MainsAlarmMask                 map8              0x0,0x3       RW     0       O
+  attr 0x0011 MainsVoltageMinThreshold       uint16            0x0000,0xffff RW     0       O
+  attr 0x0012 MainsVoltageMaxThreshold       uint16            0x0000,0xffff RW     0xffff  O
+  attr 0x0013 MainsVoltageDwellTripPoint     uint16            0x0000,0xffff RW     0       O
 
-  attr 0x0020 Battery1Voltage                uint8             0x00   0xff   R      non     O
-  attr 0x0021 Battery1PercentageRemaining    uint8             0x00   0xff   RP     0       O
-  attr 0x0030 Battery1Manufacturer           string            0      16     RW     ""      O
-  attr 0x0031 Battery1Size                   enum8:BatterySize -      -      RW     0xff    O
-  attr 0x0032 Battery1AHrRating              uint16            0x0000 0xffff RW     non     O
-  attr 0x0033 Battery1Quantity               uint8             0x00   0xff   RW     non     O
-  attr 0x0034 Battery1RatedVoltage           uint8             0x00   0xff   RW     non     O
-  attr 0x0035 Battery1AlarmMask              map8              -      -      RW     0       O
-  attr 0x0036 Battery1VoltageMinThreshold    uint8             0x00   0xff   RW     0       O
-  attr 0x0037 Battery1VoltageThreshold1      uint8             0x00   0xff   R*W    0       O
-  attr 0x0038 Battery1VoltageThreshold2      uint8             0x00   0xff   R*W    0       O
-  attr 0x0039 Battery1VoltageThreshold3      uint8             0x00   0xff   R*W    0       O
-  attr 0x003a Battery1PercentageMinThreshold uint8             0x00   0xff   R*W    0       O
-  attr 0x003b Battery1PercentageThreshold1   uint8             0x00   0xff   R*W    0       O
-  attr 0x003c Battery1PercentageThreshold2   uint8             0x00   0xff   R*W    0       O
-  attr 0x003d Battery1PercentageThreshold3   uint8             0x00   0xff   R*W    0       O
-  attr 0x003e Battery1AlarmState             map32             -      -      RP     0       O
+  attr 0x0020 Battery1Voltage                uint8             0x00,0xff     R      non     O
+  attr 0x0021 Battery1PercentageRemaining    uint8             0x00,0xff     RP     0       O
+  attr 0x0030 Battery1Manufacturer           string            16            RW     ""      O
+  attr 0x0031 Battery1Size                   enum8:BatterySize -             RW     0xff    O
+  attr 0x0032 Battery1AHrRating              uint16            0x0000,0xffff RW     non     O
+  attr 0x0033 Battery1Quantity               uint8             0x00,0xff     RW     non     O
+  attr 0x0034 Battery1RatedVoltage           uint8             0x00,0xff     RW     non     O
+  attr 0x0035 Battery1AlarmMask              map8              -             RW     0       O
+  attr 0x0036 Battery1VoltageMinThreshold    uint8             0x00,0xff     RW     0       O
+  attr 0x0037 Battery1VoltageThreshold1      uint8             0x00,0xff     R*W    0       O
+  attr 0x0038 Battery1VoltageThreshold2      uint8             0x00,0xff     R*W    0       O
+  attr 0x0039 Battery1VoltageThreshold3      uint8             0x00,0xff     R*W    0       O
+  attr 0x003a Battery1PercentageMinThreshold uint8             0x00,0xff     R*W    0       O
+  attr 0x003b Battery1PercentageThreshold1   uint8             0x00,0xff     R*W    0       O
+  attr 0x003c Battery1PercentageThreshold2   uint8             0x00,0xff     R*W    0       O
+  attr 0x003d Battery1PercentageThreshold3   uint8             0x00,0xff     R*W    0       O
+  attr 0x003e Battery1AlarmState             map32             -             RP     0       O
 
-  attr 0x0040 Battery2Voltage                uint8             0x00   0xff   R      non     O
-  attr 0x0041 Battery2PercentageRemaining    uint8             0x00   0xff   RP     0       O
-  attr 0x0050 Battery2Manufacturer           string            0      16     RW     ""      O
-  attr 0x0051 Battery2Size                   enum8:BatterySize -      -      RW     0xff    O
-  attr 0x0052 Battery2AHrRating              uint16            0x0000 0xffff RW     non     O
-  attr 0x0053 Battery2Quantity               uint8             0x00   0xff   RW     non     O
-  attr 0x0054 Battery2RatedVoltage           uint8             0x00   0xff   RW     non     O
-  attr 0x0055 Battery2AlarmMask              map8              -      -      RW     0       O
-  attr 0x0056 Battery2VoltageMinThreshold    uint8             0x00   0xff   RW     0       O
-  attr 0x0057 Battery2VoltageThreshold1      uint8             0x00   0xff   R*W    0       O
-  attr 0x0058 Battery2VoltageThreshold2      uint8             0x00   0xff   R*W    0       O
-  attr 0x0059 Battery2VoltageThreshold3      uint8             0x00   0xff   R*W    0       O
-  attr 0x005a Battery2PercentageMinThreshold uint8             0x00   0xff   R*W    0       O
-  attr 0x005b Battery2PercentageThreshold1   uint8             0x00   0xff   R*W    0       O
-  attr 0x005c Battery2PercentageThreshold2   uint8             0x00   0xff   R*W    0       O
-  attr 0x005d Battery2PercentageThreshold3   uint8             0x00   0xff   R*W    0       O
-  attr 0x005e Battery2AlarmState             map32             -      -      RP     0       O
+  attr 0x0040 Battery2Voltage                uint8             0x00,0xff     R      non     O
+  attr 0x0041 Battery2PercentageRemaining    uint8             0x00,0xff     RP     0       O
+  attr 0x0050 Battery2Manufacturer           string            16            RW     ""      O
+  attr 0x0051 Battery2Size                   enum8:BatterySize -             0xff   O
+  attr 0x0052 Battery2AHrRating              uint16            0x0000,0xffff RW     non     O
+  attr 0x0053 Battery2Quantity               uint8             0x00,0xff     RW     non     O
+  attr 0x0054 Battery2RatedVoltage           uint8             0x00,0xff     RW     non     O
+  attr 0x0055 Battery2AlarmMask              map8              -             0      O
+  attr 0x0056 Battery2VoltageMinThreshold    uint8             0x00,0xff     RW     0       O
+  attr 0x0057 Battery2VoltageThreshold1      uint8             0x00,0xff     R*W    0       O
+  attr 0x0058 Battery2VoltageThreshold2      uint8             0x00,0xff     R*W    0       O
+  attr 0x0059 Battery2VoltageThreshold3      uint8             0x00,0xff     R*W    0       O
+  attr 0x005a Battery2PercentageMinThreshold uint8             0x00,0xff     R*W    0       O
+  attr 0x005b Battery2PercentageThreshold1   uint8             0x00,0xff     R*W    0       O
+  attr 0x005c Battery2PercentageThreshold2   uint8             0x00,0xff     R*W    0       O
+  attr 0x005d Battery2PercentageThreshold3   uint8             0x00,0xff     R*W    0       O
+  attr 0x005e Battery2AlarmState             map32             -             0      O
 
-  attr 0x0060 Battery3Voltage                uint8             0x00   0xff   R      non     O
-  attr 0x0061 Battery3PercentageRemaining    uint8             0x00   0xff   RP     0       O
-  attr 0x0070 Battery3Manufacturer           string            0      16     RW     ""      O
-  attr 0x0071 Battery3Size                   enum8:BatterySize -      -      RW     0xff    O
-  attr 0x0072 Battery3AHrRating              uint16            0x0000 0xffff RW     non     O
-  attr 0x0073 Battery3Quantity               uint8             0x00   0xff   RW     non     O
-  attr 0x0074 Battery3RatedVoltage           uint8             0x00   0xff   RW     non     O
-  attr 0x0075 Battery3AlarmMask              map8              -      -      RW     0       O
-  attr 0x0076 Battery3VoltageMinThreshold    uint8             0x00   0xff   RW     0       O
-  attr 0x0077 Battery3VoltageThreshold1      uint8             0x00   0xff   R*W    0       O
-  attr 0x0078 Battery3VoltageThreshold2      uint8             0x00   0xff   R*W    0       O
-  attr 0x0079 Battery3VoltageThreshold3      uint8             0x00   0xff   R*W    0       O
-  attr 0x007a Battery3PercentageMinThreshold uint8             0x00   0xff   R*W    0       O
-  attr 0x007b Battery3PercentageThreshold1   uint8             0x00   0xff   R*W    0       O
-  attr 0x007c Battery3PercentageThreshold2   uint8             0x00   0xff   R*W    0       O
-  attr 0x007d Battery3PercentageThreshold3   uint8             0x00   0xff   R*W    0       O
-  attr 0x007e Battery3AlarmState             map32             -      -      RP     0       O
+  attr 0x0060 Battery3Voltage                uint8             0x00,0xff     R      non     O
+  attr 0x0061 Battery3PercentageRemaining    uint8             0x00,0xff     RP     0       O
+  attr 0x0070 Battery3Manufacturer           string            16            RW     ""      O
+  attr 0x0071 Battery3Size                   enum8:BatterySize -             0xff   O
+  attr 0x0072 Battery3AHrRating              uint16            0x0000,0xffff RW     non     O
+  attr 0x0073 Battery3Quantity               uint8             0x00,0xff     RW     non     O
+  attr 0x0074 Battery3RatedVoltage           uint8             0x00,0xff     RW     non     O
+  attr 0x0075 Battery3AlarmMask              map8              -             0      O
+  attr 0x0076 Battery3VoltageMinThreshold    uint8             0x00,0xff     RW     0       O
+  attr 0x0077 Battery3VoltageThreshold1      uint8             0x00,0xff     R*W    0       O
+  attr 0x0078 Battery3VoltageThreshold2      uint8             0x00,0xff     R*W    0       O
+  attr 0x0079 Battery3VoltageThreshold3      uint8             0x00,0xff     R*W    0       O
+  attr 0x007a Battery3PercentageMinThreshold uint8             0x00,0xff     R*W    0       O
+  attr 0x007b Battery3PercentageThreshold1   uint8             0x00,0xff     R*W    0       O
+  attr 0x007c Battery3PercentageThreshold2   uint8             0x00,0xff     R*W    0       O
+  attr 0x007d Battery3PercentageThreshold3   uint8             0x00,0xff     R*W    0       O
+  attr 0x007e Battery3AlarmState             map32             -             0      O
 }
+
+cluster DeviceTemperatureConfiguration 0x0002 {
+  #    id     name                   type   range             access   default mandatory
+  attr 0x0000 CurrentTemperature     int16  -200,200          R        non     M
+  attr 0x0001 MinTempExperienced     int16  -200,200          R        non     O
+  attr 0x0002 MaxTempExperienced     int16  -200,200          R        non     O
+  attr 0x0003 OverTempTotalDwell     uint16 0x0000,0xffff     R        0       O
+  attr 0x0010 DeviceTempAlarmMask    map8   0x0,0x3           RW       0       O
+  attr 0x0011 LowTempThreshold       int16  -200,200          RW       non     O
+  attr 0x0012 HighTempThreshold      int16  -200,200          RW       non     O
+  attr 0x0013 LowTempDwellTripPoint  uint24 0x000000,0xffffff RW       non     O
+  attr 0x0014 HighTempDwellTripPoint uint24 0x000000,0xffffff RW       non     O
+}
+
+cluster Identify 0x0003 {
+  #    id     name         type   range         access default mandatory
+  attr 0x0000 IdentifyTime uint16 0x0000,0xffff RW     0       M
+}
+
+cluster Groups 0x0004 {
+  #    id     name        type range access default mandatory
+  attr 0x0000 NameSupport map8 -     R      0       M
+}
+
+cluster Scenes 0x0005 {
+  #    id     name             type   range         access default mandatory
+  attr 0x0000 SceneCount       uint8  0x00,0xff     R      0       M
+  attr 0x0001 CurrentScene     uint8  0x00,0xff     R      0       M
+  attr 0x0002 CurrentGroup     uint16 0x0000,0xfff7 R      0       M
+  attr 0x0003 SceneValid       bool   value         R      false   M
+  attr 0x0004 NameSupport      map8   -             R      0       M
+  attr 0x0005 LastConfiguredBy EUI64  -             R      non     O
+}
+
+# cluster OnOff 0x0006 {
+#   #    id     name               type   range    access default mandatory
+#   attr 0x0000 OnOff              bool   value    RPS    false   M
+#   attr 0x4000 GlobalSceneControl bool   value    R      true    O
+#   attr 0x4001 OnTime             uint16 full-non RW     0       O
+#   attr 0x4002 OffWaitTime        uint16 full     RW     0       O
+#   attr 0x4003 StartUpOnOff       enum8  -        RW     -       O
+# }
 
 # vim: set ft=ruby:
