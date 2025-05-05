@@ -1,4 +1,6 @@
-pub mod attribute;
+mod attribute;
+
+pub use attribute::*;
 
 pub trait ZclCompatibleType {
     fn len(&self) -> usize;

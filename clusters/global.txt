@@ -1,0 +1,10 @@
+enum8 AttributeReportingStatus {
+  0x00 Pending
+  0x01 AttributeReportingComplete
+}
+
+#    id     name                       type    min    max    access default mandatory
+attr 0xfffd ClusterRevision            uint16  0x0001 0xfffe R      0       M
+attr 0xfffe AttributeReportingStatus   enum8   0x00   0xff   R      -       O
+
+# vim: set ft=ruby:

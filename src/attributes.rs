@@ -38,10 +38,10 @@ fn define_attribute_raw(
         #[doc = concat!("    max: ", stringify!($max), ",")]
         #[doc = "}"]
         #[doc = "```"]
-        pub const {{name_constant_case}}: crate::types::attribute::Attribute<'static, $type> = crate::types::attribute::Attribute {
+        pub const {{name_constant_case}}: crate::types::Attribute<'static, $type> = crate::types::Attribute {
             code: $code,
             name: stringify!($name),
-            side: crate::types::attribute::AttributeSide::Server,
+            side: crate::types::AttributeSide::Server,
             writable: {{writable}},
             readable: {{readable}},
             reportable: {{reportable}},
@@ -243,8 +243,8 @@ macro_rules! define_attr {
             $id,
             $name,
             crate::types::Enum8::<$enum>,
-            crate::types::attribute::AttributeRange::Ignore,
-            crate::types::attribute::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
             $access,
             None,
             $optional
@@ -255,8 +255,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!(octstr),
-            crate::types::attribute::AttributeRange::Size(0),
-            crate::types::attribute::AttributeRange::Size($max_bytes),
+            crate::types::AttributeRange::Size(0),
+            crate::types::AttributeRange::Size($max_bytes),
             $access,
             Some(map_kind_to_type!(octstr)(Some($default))),
             $optional
@@ -267,8 +267,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!(octstr),
-            crate::types::attribute::AttributeRange::Ignore,
-            crate::types::attribute::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
             $access,
             Some(map_kind_to_type!(octstr)(Some($default))),
             $optional
@@ -279,8 +279,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!(string),
-            crate::types::attribute::AttributeRange::Size(0),
-            crate::types::attribute::AttributeRange::Size($max_bytes),
+            crate::types::AttributeRange::Size(0),
+            crate::types::AttributeRange::Size($max_bytes),
             $access,
             Some(map_kind_to_type!(string)(Some($default))),
             $optional
@@ -291,8 +291,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!(string),
-            crate::types::attribute::AttributeRange::Ignore,
-            crate::types::attribute::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
+            crate::types::AttributeRange::Ignore,
             $access,
             Some(map_kind_to_type!(string)(Some($default))),
             $optional
@@ -303,8 +303,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!(bool),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!(bool)(Some(false))),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!(bool)(Some(true))),
+            crate::types::AttributeRange::Value(map_kind_to_type!(bool)(Some(false))),
+            crate::types::AttributeRange::Value(map_kind_to_type!(bool)(Some(true))),
             $access,
             Some(map_kind_to_type!(bool)(Some($default))),
             $optional
@@ -315,8 +315,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!($kind),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!($kind)($min)),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!($kind)($max)),
+            crate::types::AttributeRange::Value(map_kind_to_type!($kind)($min)),
+            crate::types::AttributeRange::Value(map_kind_to_type!($kind)($max)),
             $access,
             None,
             $optional
@@ -327,8 +327,8 @@ macro_rules! define_attr {
             $id,
             $name,
             map_kind_to_type!($kind),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!($kind)($min)),
-            crate::types::attribute::AttributeRange::Value(map_kind_to_type!($kind)($max)),
+            crate::types::AttributeRange::Value(map_kind_to_type!($kind)($min)),
+            crate::types::AttributeRange::Value(map_kind_to_type!($kind)($max)),
             $access,
             Some(map_kind_to_type!($kind)($default)),
             $optional
@@ -342,7 +342,7 @@ macro_rules! define_cluster {
     ]) => { paste::paste! {
         pub mod [<$cluster_name:snake:lower>] {
             pub struct [< $cluster_name Attrs >] {
-                $(pub [<$name:snake:lower>]: $crate::types::attribute::Attribute<'static, map_kind_to_type!($kind)>,)+
+                $(pub [<$name:snake:lower>]: $crate::types::Attribute<'static, map_kind_to_type!($kind)>,)+
             }
 
             impl [< $cluster_name Attrs >] {

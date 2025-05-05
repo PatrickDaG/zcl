@@ -33,9 +33,3 @@ pub struct Attribute<'a, T: ZclType> {
     pub min: AttributeRange<T>,
     pub max: AttributeRange<T>,
 }
-
-// impl Attribute<> {
-//     fn ty(&self) -> &'static str {
-//         T::ty() // e.g. crate::types::U16
-//     }
-// }

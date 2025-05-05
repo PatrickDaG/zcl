@@ -104,10 +104,11 @@ fn kind_to_type(ident: &str, kind: &str) -> TokenStream {
     }
 }
 
-fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum>) {
+fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
     let file = File::open(filename).expect("Failed to open file");
     let reader = BufReader::new(file);
 
+    let mut global_attributes = Vec::new();
     let mut clusters = Vec::new();
     let mut enums = Vec::new();
 
@@ -152,6 +153,8 @@ fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum>) {
                 };
                 if let Some(cluster) = current_cluster.as_mut() {
                     cluster.attributes.push(attr);
+                } else {
+                    global_attributes.push(attr);
                 }
             }
         } else if line == "}" {
@@ -172,7 +175,7 @@ fn parse_file(filename: &str) -> (Vec<Cluster>, Vec<Enum>) {
         }
     }
 
-    (clusters, enums)
+    (global_attributes, clusters, enums)
 }
 
 fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
@@ -356,11 +359,15 @@ fn main() {
             let filename_stem = path.file_stem().unwrap().to_string_lossy();
             let mod_name = format_ident!("{}", filename_stem);
             println!("cargo:rerun-if-changed={}", path.to_str().unwrap());
-            let (clusters, enum8s) = parse_file(&path.to_string_lossy());
+            let (global_attributes, clusters, enum8s) = parse_file(&path.to_string_lossy());
 
             let mut mod_content = TokenStream::new();
             for enum8 in &enum8s {
                 mod_content.extend(generate_enum8(enum8));
+            }
+
+            for attr in &global_attributes {
+                mod_content.extend(generate_attribute_code(attr));
             }
 
             for cluster in &clusters {
@@ -373,7 +380,6 @@ fn main() {
             let wrapped_mod = quote! {
                 pub mod #mod_name {
                     use crate::types::*;
-                    use crate::types::attribute::*;
                     #mod_content
                 }
             };
