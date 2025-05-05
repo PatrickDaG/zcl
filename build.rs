@@ -11,6 +11,7 @@ struct Attribute {
     name: String,
     spec_type: String,
     rust_type: TokenStream,
+    rust_type_doc: String,
     min: String,
     max: String,
     access: String,
@@ -36,72 +37,112 @@ struct Cluster {
     enums: Vec<Enum>,
 }
 
-fn kind_to_type(ident: &str, kind: &str) -> TokenStream {
+fn kind_to_type(ident: &str, kind: &str) -> (TokenStream, String) {
+    macro_rules! simple {
+        ($x:tt) => {
+            (
+                quote! { $x },
+                concat!("[`", stringify!($x), "`]").to_string(),
+            )
+        };
+    }
     match kind {
-        "nodata" => quote! { NoData },
-        "data8" => quote! { Data8 },
-        "data16" => quote! { Data16 },
-        "data24" => quote! { Data24 },
-        "data32" => quote! { Data32 },
-        "data40" => quote! { Data40 },
-        "data48" => quote! { Data48 },
-        "data56" => quote! { Data56 },
-        "data64" => quote! { Data64 },
-        "bool" => quote! { Bool },
-        "map8" => quote! { Bitmap8 },
-        "map16" => quote! { Bitmap16 },
-        "map24" => quote! { Bitmap24 },
-        "map32" => quote! { Bitmap32 },
-        "map40" => quote! { Bitmap40 },
-        "map48" => quote! { Bitmap48 },
-        "map56" => quote! { Bitmap56 },
-        "map64" => quote! { Bitmap64 },
-        "uint8" => quote! { U8 },
-        "uint16" => quote! { U16 },
-        "uint24" => quote! { U24 },
-        "uint32" => quote! { U32 },
-        "uint40" => quote! { U40 },
-        "uint48" => quote! { U48 },
-        "uint56" => quote! { U56 },
-        "uint64" => quote! { U64 },
-        "int8" => quote! { I8 },
-        "int16" => quote! { I16 },
-        "int24" => quote! { I24 },
-        "int32" => quote! { I32 },
-        "int40" => quote! { I40 },
-        "int48" => quote! { I48 },
-        "int56" => quote! { I56 },
-        "int64" => quote! { I64 },
+        "nodata" => simple! { NoData },
+        "data8" => simple! { Data8 },
+        "data16" => simple! { Data16 },
+        "data24" => simple! { Data24 },
+        "data32" => simple! { Data32 },
+        "data40" => simple! { Data40 },
+        "data48" => simple! { Data48 },
+        "data56" => simple! { Data56 },
+        "data64" => simple! { Data64 },
+        "bool" => simple! { Bool },
+        "map8" => simple! { Bitmap8 },
+        "map16" => simple! { Bitmap16 },
+        "map24" => simple! { Bitmap24 },
+        "map32" => simple! { Bitmap32 },
+        "map40" => simple! { Bitmap40 },
+        "map48" => simple! { Bitmap48 },
+        "map56" => simple! { Bitmap56 },
+        "map64" => simple! { Bitmap64 },
+        "uint8" => simple! { U8 },
+        "uint16" => simple! { U16 },
+        "uint24" => simple! { U24 },
+        "uint32" => simple! { U32 },
+        "uint40" => simple! { U40 },
+        "uint48" => simple! { U48 },
+        "uint56" => simple! { U56 },
+        "uint64" => simple! { U64 },
+        "int8" => simple! { I8 },
+        "int16" => simple! { I16 },
+        "int24" => simple! { I24 },
+        "int32" => simple! { I32 },
+        "int40" => simple! { I40 },
+        "int48" => simple! { I48 },
+        "int56" => simple! { I56 },
+        "int64" => simple! { I64 },
+        x if x.starts_with("enum8:") => {
+            let chosen_enum = format_ident!("{}", x.strip_prefix("enum8:").unwrap());
+            (
+                quote! { Enum8::<#chosen_enum> },
+                format!("[`Enum8`]::<[`{chosen_enum}`]>"),
+            )
+        }
+        x if x.starts_with("enum16:") => {
+            let chosen_enum = format_ident!("{}", x.strip_prefix("enum16:").unwrap());
+            (
+                quote! { Enum16::<#chosen_enum> },
+                format!("[`Enum16`]::<[`{chosen_enum}`]>"),
+            )
+        }
         "enum8" => {
             let ident = format_ident!("{ident}");
-            quote! { Enum8::<#ident> }
+            (
+                quote! { Enum8::<#ident> },
+                format!("[`Enum8`]::<[`{ident}`]>"),
+            )
         }
         "enum16" => {
             let ident = format_ident!("{ident}");
-            quote! { Enum16::<#ident> }
+            (
+                quote! { Enum16::<#ident> },
+                format!("[`Enum16`]::<[`{ident}`]>"),
+            )
         }
         // "semi"      => quote! {  }}
-        "single" => quote! { F32 },
-        "double" => quote! { F64 },
-        "octstr" => quote! { OctetString::<'static> },
-        "string" => quote! { CharacterString::<'static> },
-        "octstr16" => quote! { LongOctetString::<'static> },
-        "string16" => quote! { LongCharacterString::<'static> },
+        "single" => simple! { F32 },
+        "double" => simple! { F64 },
+        "octstr" => (
+            quote! { OctetString::<'static> },
+            "[`OctetString`]".to_string(),
+        ),
+        "string" => (
+            quote! { CharacterString::<'static> },
+            "[`CharacterString`]".to_string(),
+        ),
+        "octstr16" => (
+            quote! { LongOctetString::<'static> },
+            "[`LongOctetString`]".to_string(),
+        ),
+        "string16" => (
+            quote! { LongCharacterString::<'static> },
+            "[`LongCharacterString`]".to_string(),
+        ),
         // "ASCII"     => quote! {  }}
         // "array"     => quote! { Array }}
         // "struct"    => quote! { Structure }}
         // "set"       => quote! {  }}
         // "bag"       => quote! {  }}
-        "ToD" => quote! { TimeOfDay },
-        "date" => quote! { Date },
-        "UTC" => quote! { UtcTime },
-        "clusterId" => quote! { ClusterId },
-        "attribId" => quote! { AttributeId },
-        "bacOID" => quote! { BacnetOid },
-        "EUI64" => quote! { IeeeAddress },
-        "key128" => quote! { SecurityKey },
-        "unk" => quote! { Unknown },
-        other => quote! { #other },
+        "ToD" => simple! { TimeOfDay },
+        "date" => simple! { Date },
+        "UTC" => simple! { UtcTime },
+        "clusterId" => simple! { ClusterId },
+        "attribId" => simple! { AttributeId },
+        "bacOID" => simple! { BacnetOid },
+        "EUI64" => simple! { IeeeAddress },
+        "key128" => simple! { SecurityKey },
+        "unk" => simple! { Unknown },
+        other => (quote! { #other }, other.to_string()),
     }
 }
 
@@ -115,7 +156,7 @@ fn kind_to_cast(kind: &str) -> TokenStream {
         "int48" => quote! { as u48 as i48 },
         "int56" => quote! { as u56 as i56 },
         "int64" => quote! { as u64 as i64 },
-        other => quote! {},
+        _ => quote! {},
     }
 }
 
@@ -155,12 +196,13 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 9 {
                 let spec_type = parts[3].to_string();
-                let rust_type = kind_to_type(parts[2], &spec_type);
+                let (rust_type, rust_type_doc) = kind_to_type(parts[2], &spec_type);
                 let attr = Attribute {
                     id: parts[1].to_string(),
                     name: parts[2].to_string(),
                     spec_type,
                     rust_type,
+                    rust_type_doc,
                     min: parts[4].to_string(),
                     max: parts[5].to_string(),
                     access: parts[6].to_string(),
@@ -230,12 +272,20 @@ fn generate_attribute_code(attr: &Attribute, cluster: Option<&Cluster>) -> Token
     let rust_type = &attr.rust_type;
     let default = match attr.default.as_str() {
         "-" => quote! { None },
-        "None" => {
-            quote! { Some(#rust_type(None)) }
+        "non" => {
+            quote! { Some(#rust_type(#rust_type::NON_VALUE.unwrap())) }
         }
         def => {
             let default: Expr = syn::parse_str(def).unwrap();
             match attr.spec_type.as_str() {
+                x if x.starts_with("enum8:") => {
+                    let chosen_enum = format_ident!("{}", x.strip_prefix("enum8:").unwrap());
+                    quote! { Some(#rust_type(#chosen_enum::from_value(#default))) }
+                }
+                x if x.starts_with("enum16:") => {
+                    let chosen_enum = format_ident!("{}", x.strip_prefix("enum16:").unwrap());
+                    quote! { Some(#rust_type(#chosen_enum::from_value(#default))) }
+                }
                 "enum8" | "enum16" => {
                     let ident = format_ident!("{}", attr.name);
                     quote! { Some(#rust_type(#ident::from_value(#default))) }
@@ -436,16 +486,39 @@ fn main() {
             for cluster in &clusters {
                 let mut inner_mod_content = TokenStream::new();
                 let mod_name = format_ident!("{}", cluster.name.to_case(Case::Snake));
+                let mut attr_table = "".to_string();
+                attr_table += "| id | name | type | min | max | access | default | mandatory |\n";
+                attr_table += "|----|------|------|-----|-----|--------|---------|-----------|\n";
+
                 for enu in &cluster.enums {
                     inner_mod_content.extend(generate_enum8(enu));
                 }
                 for attr in &cluster.attributes {
                     inner_mod_content.extend(generate_attribute_code(attr, Some(cluster)));
+                    attr_table += &format!(
+                        "| {} | [{}]({mod_name}::{}) | {} | {} | {} | {} | {} | {} |\n",
+                        attr.id,
+                        attr.name,
+                        attr.name.to_case(Case::UpperSnake),
+                        attr.rust_type_doc,
+                        attr.min,
+                        attr.max,
+                        attr.access,
+                        attr.default,
+                        if attr.mandatory == "M" { "✅" } else { "❌" },
+                    );
                 }
                 inner_mod_content.extend(generate_cluster_struct(cluster));
+
                 mod_content.extend(quote! {
+                    #[doc = "Holds types and constants related to the {} cluster."]
+                    #[doc = ""]
+                    #[doc = "Attribute list:"]
+                    #[doc = ""]
+                    #[doc = #attr_table]
                     pub mod #mod_name {
                         use crate::types::*;
+                        use super::*;
                         #inner_mod_content
                     }
                 });
