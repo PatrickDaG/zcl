@@ -4,7 +4,7 @@ use quote::{format_ident, quote};
 use std::fs::{self, File};
 use std::io::{BufRead, BufReader};
 use std::path::PathBuf;
-use syn::{Expr, Lit, Type, parse_quote};
+use syn::{Expr, Lit, LitInt, Type, parse_quote};
 
 struct Attribute {
     id: String,
@@ -105,6 +105,20 @@ fn kind_to_type(ident: &str, kind: &str) -> TokenStream {
     }
 }
 
+fn kind_to_cast(kind: &str) -> TokenStream {
+    match kind {
+        "int8" => quote! { as u8  as i8 },
+        "int16" => quote! { as u16 as i16 },
+        "int24" => quote! { as u24 as i24 },
+        "int32" => quote! { as u32 as i32 },
+        "int40" => quote! { as u40 as i40 },
+        "int48" => quote! { as u48 as i48 },
+        "int56" => quote! { as u56 as i56 },
+        "int64" => quote! { as u64 as i64 },
+        other => quote! {},
+    }
+}
+
 fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
     let file = File::open(filename).expect("Failed to open file");
     let reader = BufReader::new(file);
@@ -183,7 +197,7 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
     (global_attributes, clusters, global_enums)
 }
 
-fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
+fn parse_bound(attr: &Attribute, bound: &str, cluster: Option<&Cluster>) -> TokenStream {
     match (attr.spec_type.as_str(), bound) {
         (_, "-") => quote! { AttributeRange::Ignore },
         ("enum8" | "enum16", _) => quote! { AttributeRange::Ignore },
@@ -192,19 +206,25 @@ fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
             quote! { AttributeRange::Size(#v) }
         }
         (_, v) => {
-            if v.starts_with("#") {
-                let v: Expr = syn::parse_str(v.trim_matches('#')).unwrap();
-                quote! { AttributeRange::Attribute(#v) }
-            } else {
+            if let Ok(v) = syn::parse_str::<LitInt>(v) {
+                let cast = kind_to_cast(&attr.spec_type);
                 let rust_type = &attr.rust_type;
-                let v: Expr = syn::parse_str(v).unwrap();
-                quote! { AttributeRange::Value(#rust_type(#v)) }
+                quote! { AttributeRange::Value(#rust_type(#v #cast)) }
+            } else if let Some(cluster) = cluster {
+                if let Some(attr) = cluster.attributes.iter().find(|x| x.name == v) {
+                    let id: Lit = syn::parse_str(&attr.id).unwrap();
+                    quote! { AttributeRange::Attribute(#id) }
+                } else {
+                    panic!("Failed finding attribute");
+                }
+            } else {
+                panic!("Failed parsing bound");
             }
         }
     }
 }
 
-fn generate_attribute_code(attr: &Attribute) -> TokenStream {
+fn generate_attribute_code(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
     let id: Lit = syn::parse_str(&attr.id).unwrap();
     let name = &attr.name;
     let rust_type = &attr.rust_type;
@@ -227,8 +247,8 @@ fn generate_attribute_code(attr: &Attribute) -> TokenStream {
             }
         }
     };
-    let min = parse_bound(attr, &attr.min);
-    let max = parse_bound(attr, &attr.max);
+    let min = parse_bound(attr, &attr.min, cluster);
+    let max = parse_bound(attr, &attr.max, cluster);
     let mandatory = attr.mandatory == "M";
 
     // Parse access flags
@@ -410,7 +430,7 @@ fn main() {
             }
 
             for attr in &global_attributes {
-                mod_content.extend(generate_attribute_code(attr));
+                mod_content.extend(generate_attribute_code(attr, None));
             }
 
             for cluster in &clusters {
@@ -420,7 +440,7 @@ fn main() {
                     inner_mod_content.extend(generate_enum8(enu));
                 }
                 for attr in &cluster.attributes {
-                    inner_mod_content.extend(generate_attribute_code(attr));
+                    inner_mod_content.extend(generate_attribute_code(attr, Some(cluster)));
                 }
                 inner_mod_content.extend(generate_cluster_struct(cluster));
                 mod_content.extend(quote! {
