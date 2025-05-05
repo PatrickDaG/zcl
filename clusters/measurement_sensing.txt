@@ -1,9 +1,8 @@
 cluster TemperatureMeasurement 0x0402 {
-	#attr 0x0000 MeasuredValue int16 MinMeasuredValue MaxMeasuredValue RP - M
-	attr 0x0000 MeasuredValue int16 #1 #2 RP - M
-	#attr 0x0001 MinMeasuredValue int16 0x954d 0x7ffe R - M
-	attr 0x0001 MinMeasuredValue int16 -27315 0x7ffe R - M
-	#attr 0x0002 MaxMeasuredValue int16 0x954e 0x7fff R - M
-	attr 0x0002 MaxMeasuredValue int16 -27314 0x7fff R - M
-	attr 0x0003 Tolerance uint16 0x0000 0x0800 R - O
+	attr 0x0000 MeasuredValue    int16  MinMeasuredValue MaxMeasuredValue RP - M
+	attr 0x0001 MinMeasuredValue int16  0x954d           0x7ffe           R  - M
+	attr 0x0002 MaxMeasuredValue int16  0x954e           0x7fff           R  - M
+	attr 0x0003 Tolerance        uint16 0x0000           0x0800           R  - O
 }
+
+# vim: set ft=ruby:
