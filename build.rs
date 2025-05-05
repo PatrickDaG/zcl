@@ -260,6 +260,39 @@ fn generate_attribute_code(attr: &Attribute) -> TokenStream {
     }
 }
 
+fn generate_cluster(cluster: &Cluster) -> TokenStream {
+    let name = &cluster.name;
+    let cluster_name = format_ident!("{}_CLUSTER", cluster.name.to_case(Case::UpperSnake));
+    let id: Lit = syn::parse_str(&cluster.id).unwrap();
+    let mod_name = format_ident!("{}", cluster.name.to_case(Case::Lower));
+
+    let fields = cluster.attributes.iter().map(|attr| {
+        let field_name = format_ident!("{}", attr.name.to_case(Case::Snake));
+        let val_name = format_ident!("{}", attr.name.to_case(Case::UpperSnake));
+        quote! {
+            #field_name: self::#mod_name::#val_name,
+        }
+    });
+    let struct_name = format_ident!("{}Attrs", cluster.name.to_case(Case::UpperCamel));
+    let cluster_def = quote! {
+        pub const #cluster_name:crate::Cluster<'static,self::#mod_name::#struct_name> = crate::Cluster {
+            code: #id,
+            name: #name,
+            meta: self::#mod_name::#struct_name {
+                #(#fields)*
+            },
+        };
+    };
+    let cluster_def_str =
+        prettyplease::unparse(&syn::parse_file(cluster_def.to_string().as_str()).unwrap());
+    quote! {
+        #[doc = "```rust"]
+        #[doc = #cluster_def_str]
+        #[doc = "```"]
+        #cluster_def
+    }
+}
+
 fn generate_cluster_struct(cluster: &Cluster) -> TokenStream {
     let struct_name = format_ident!("{}Attrs", cluster.name.to_case(Case::UpperCamel));
     let fields = cluster.attributes.iter().map(|attr| {
@@ -377,7 +410,7 @@ fn main() {
 
             for cluster in &clusters {
                 let mut inner_mod_content = TokenStream::new();
-                let mod_name = format_ident!("{}", cluster.name);
+                let mod_name = format_ident!("{}", cluster.name.to_case(Case::Lower));
                 for enu in &cluster.enums {
                     inner_mod_content.extend(generate_enum8(enu));
                 }
@@ -391,6 +424,7 @@ fn main() {
                         #inner_mod_content
                     }
                 });
+                mod_content.extend(generate_cluster(cluster));
             }
 
             let wrapped_mod = quote! {
