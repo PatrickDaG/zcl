@@ -192,9 +192,14 @@ fn parse_bound(attr: &Attribute, bound: &str) -> TokenStream {
             quote! { AttributeRange::Size(#v) }
         }
         (_, v) => {
-            let rust_type = &attr.rust_type;
-            let v: Expr = syn::parse_str(v).unwrap();
-            quote! { AttributeRange::Value(#rust_type(#v)) }
+            if v.starts_with("#") {
+                let v: Expr = syn::parse_str(v.trim_matches('#')).unwrap();
+                quote! { AttributeRange::Attribute(#v) }
+            } else {
+                let rust_type = &attr.rust_type;
+                let v: Expr = syn::parse_str(v).unwrap();
+                quote! { AttributeRange::Value(#rust_type(#v)) }
+            }
         }
     }
 }
