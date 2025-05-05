@@ -264,7 +264,7 @@ fn generate_cluster(cluster: &Cluster) -> TokenStream {
     let name = &cluster.name;
     let cluster_name = format_ident!("{}_CLUSTER", cluster.name.to_case(Case::UpperSnake));
     let id: Lit = syn::parse_str(&cluster.id).unwrap();
-    let mod_name = format_ident!("{}", cluster.name.to_case(Case::Lower));
+    let mod_name = format_ident!("{}", cluster.name.to_case(Case::Snake));
 
     let fields = cluster.attributes.iter().map(|attr| {
         let field_name = format_ident!("{}", attr.name.to_case(Case::Snake));
@@ -410,7 +410,7 @@ fn main() {
 
             for cluster in &clusters {
                 let mut inner_mod_content = TokenStream::new();
-                let mod_name = format_ident!("{}", cluster.name.to_case(Case::Lower));
+                let mod_name = format_ident!("{}", cluster.name.to_case(Case::Snake));
                 for enu in &cluster.enums {
                     inner_mod_content.extend(generate_enum8(enu));
                 }
