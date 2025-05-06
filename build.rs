@@ -18,6 +18,7 @@ struct Attribute {
     mandatory: String,
 }
 
+#[derive(Clone)]
 struct EnumVariant {
     value: String,
     name: String,
@@ -244,16 +245,22 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
             });
         } else if line.starts_with("attr") {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            if parts.len() >= 9 {
+            if parts.len() == 8 {
                 let spec_type = parts[3].to_string();
                 let (rust_type, rust_type_doc) = kind_to_type(parts[2], &spec_type);
+                let range = match (parts[3], parts[4]) {
+                    ("enum8", "0x00,0xff") => "full-non",
+                    ("enum16", "0x0000,0xffff") => "full-non",
+                    (_, x) => x,
+                }
+                .to_string();
                 let attr = Attribute {
                     id: parts[1].to_string(),
                     name: parts[2].to_string(),
                     spec_type,
                     rust_type,
                     rust_type_doc,
-                    range: parts[4].to_string(),
+                    range,
                     access: parts[5].to_string(),
                     default: parts[6].to_string(),
                     mandatory: parts[7].to_string(),
@@ -263,6 +270,8 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
                 } else {
                     global_attributes.push(attr);
                 }
+            } else {
+                println!("cargo:warning=definition '{}' should have 8 fields", line);
             }
         } else if line == "}" {
             if let Some(en) = current_enum.take() {
@@ -312,7 +321,7 @@ fn parse_bound(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
                 let min_cast = kind_to_cast(&lit_min, &attr.spec_type);
                 let max_cast = kind_to_cast(&lit_max, &attr.spec_type);
                 let rust_type = &attr.rust_type;
-                quote! { AttributeRange::InclusiveRange(#rust_type(#lit_min #min_cast, #lit_max #max_cast)) }
+                quote! { AttributeRange::InclusiveRange(#rust_type(#lit_min #min_cast), #rust_type(#lit_max #max_cast)) }
             } else if let Some(cluster) = cluster {
                 if let (Some(min_attr), Some(max_attr)) = (
                     cluster.attributes.iter().find(|x| x.name == min),
@@ -468,46 +477,61 @@ fn generate_cluster_struct(cluster: &Cluster) -> TokenStream {
 fn generate_enum8(enum8: &Enum) -> TokenStream {
     let ident = format_ident!("{}", enum8.name.to_case(Case::UpperCamel));
     let repr_type = &enum8.repr_type;
-    let variants = enum8
-        .variants
+
+    let mut variants = enum8.variants.clone();
+    if variants.iter().find(|x| x.value == "0xff").is_none() {
+        variants.push(EnumVariant {
+            value: "0xff".to_string(),
+            name: "None".to_string(),
+        })
+    }
+
+    let enum_variants = variants
         .iter()
-        .map(|EnumVariant { value, name }| {
-            let name = format_ident!("{}", name.to_case(Case::UpperCamel));
-            let value: Expr = syn::parse_str(value).unwrap();
+        .map(|x| {
+            let name = format_ident!("{}", x.name.to_case(Case::UpperCamel));
+            let value: Expr = syn::parse_str(&x.value).unwrap();
             quote! {
                 #name = #value,
             }
         })
         .collect::<Vec<_>>();
 
-    let from_value_arms = enum8
-        .variants
+    let from_value_arms = variants
         .iter()
-        .map(|EnumVariant { value, name }| {
-            let name = format_ident!("{}", name.to_case(Case::UpperCamel));
-            let value: Expr = syn::parse_str(value).unwrap();
+        .map(|x| {
+            let name = format_ident!("{}", x.name.to_case(Case::UpperCamel));
+            let value: Expr = syn::parse_str(&x.value).unwrap();
             quote! {
                 #value => Ok(Self::#name),
             }
         })
         .collect::<Vec<_>>();
 
+    let non_value = variants
+        .iter()
+        .find(|x| x.value == "0xff")
+        .map(|x| {
+            let name = format_ident!("{}", x.name);
+            quote! { Self::#name }
+        })
+        .unwrap();
+
     quote! {
         #[repr(#repr_type)]
         #[derive(PartialEq, Debug, Copy, Clone)]
         pub enum #ident {
-            #(#variants)*
+            #(#enum_variants)*
         }
 
         impl crate::types::ZclEnum for #ident {
-            const NON_VALUE: Self = Self::None;
+            const NON_VALUE: Self = #non_value;
         }
 
         impl #ident {
             pub const fn try_from_value(value: #repr_type) -> Result<Self, ()> {
                 match value {
                     #(#from_value_arms)*
-                    #repr_type::MAX => Ok(Self::None),
                     _ => Err(())
                 }
             }
