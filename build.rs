@@ -607,7 +607,9 @@ fn main() {
                     #[doc = ""]
                     #[doc = #attr_table]
                     pub mod #mod_name {
+                        #[allow(unused)]
                         use crate::types::*;
+                        #[allow(unused)]
                         use super::*;
                         #inner_mod_content
                     }
@@ -617,6 +619,7 @@ fn main() {
 
             let wrapped_mod = quote! {
                 pub mod #mod_name {
+                    #[allow(unused)]
                     use crate::types::*;
                     #mod_content
                 }
