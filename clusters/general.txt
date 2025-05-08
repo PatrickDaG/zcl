@@ -312,13 +312,39 @@ cluster Scenes 0x0005 {
   attr 0x0005 LastConfiguredBy EUI64  -             R      non     O
 }
 
-# cluster OnOff 0x0006 {
-#   #    id     name               type   range    access default mandatory
-#   attr 0x0000 OnOff              bool   value    RPS    false   M
-#   attr 0x4000 GlobalSceneControl bool   value    R      true    O
-#   attr 0x4001 OnTime             uint16 full-non RW     0       O
-#   attr 0x4002 OffWaitTime        uint16 full     RW     0       O
-#   attr 0x4003 StartUpOnOff       enum8  -        RW     -       O
-# }
+enum8 StartUpOnOff {
+  0x00 Off
+  0x01 On
+  0x02 Toggle
+  0xff PreviousValue
+}
+
+cluster OnOff 0x0006 {
+  #    id     name               type   range    access default mandatory
+  attr 0x0000 OnOff              bool   value    RPS    false   M
+  attr 0x4000 GlobalSceneControl bool   value    R      true    O
+  attr 0x4001 OnTime             uint16 full-non RW     0       O
+  attr 0x4002 OffWaitTime        uint16 full     RW     0       O
+  attr 0x4003 StartUpOnOff       enum8  -        RW     -       O
+}
+
+enum8 SwitchType {
+  0x00 Toggle
+  0x01 Momentary
+  0x02 Multifunction
+}
+
+enum8 SwitchActions {
+  0x00 OnOff
+  0x01 OffOn
+  0x02 ToggleToggle
+}
+
+cluster OnOffSwitchConfiguration 0x0007 {
+  #    id     name          type  range access default mandatory
+  attr 0x0000 SwitchType    enum8 value R      -       M
+  attr 0x0010 SwitchActions enum8 value RW     0       M
+      todo
+}
 
 # vim: set ft=ruby:
