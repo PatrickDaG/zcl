@@ -297,7 +297,7 @@ fn parse_file(filename: &str) -> (Vec<Attribute>, Vec<Cluster>, Vec<Enum>) {
     (global_attributes, clusters, global_enums)
 }
 
-fn parse_bound(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
+fn parse_range(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
     match (attr.spec_type.as_str(), attr.range.as_str()) {
         // (_, "-") => quote! { AttributeRange::Ignore },
         (_, "value") => quote! { AttributeRange::Value },
@@ -315,26 +315,39 @@ fn parse_bound(attr: &Attribute, cluster: Option<&Cluster>) -> TokenStream {
                 )
             });
 
-            if let (Ok(lit_min), Ok(lit_max)) =
-                (syn::parse_str::<LitInt>(min), syn::parse_str::<LitInt>(max))
-            {
-                let min_cast = kind_to_cast(&lit_min, &attr.spec_type);
-                let max_cast = kind_to_cast(&lit_max, &attr.spec_type);
-                let rust_type = &attr.rust_type;
-                quote! { AttributeRange::InclusiveRange(#rust_type(#lit_min #min_cast), #rust_type(#lit_max #max_cast)) }
-            } else if let Some(cluster) = cluster {
-                if let (Some(min_attr), Some(max_attr)) = (
-                    cluster.attributes.iter().find(|x| x.name == min),
-                    cluster.attributes.iter().find(|x| x.name == max),
-                ) {
-                    let min_id: Lit = syn::parse_str(&min_attr.id).unwrap();
-                    let max_id: Lit = syn::parse_str(&max_attr.id).unwrap();
-                    quote! { AttributeRange::InclusiveRangeReference(#min_id, #max_id) }
+            let parse_bound = |bound: &str| -> TokenStream {
+                if let Ok(lit) = syn::parse_str::<LitInt>(bound) {
+                    let cast = kind_to_cast(&lit, &attr.spec_type);
+                    let rust_type = &attr.rust_type;
+                    quote! {
+                        ValueOrAttributeReference::Value(#rust_type(#lit #cast))
+                    }
+                } else if let Some(cluster) = cluster {
+                    if let Some(attr_ref) = cluster.attributes.iter().find(|a| a.name == bound) {
+                        let attr_lit: Lit = syn::parse_str(&attr_ref.id)
+                            .expect("Failed to parse attribute reference id as Lit");
+                        quote! {
+                            ValueOrAttributeReference::AttributeReference(#attr_lit)
+                        }
+                    } else {
+                        panic!("Failed to find attribute '{}' in cluster", bound);
+                    }
                 } else {
-                    panic!("Failed to find attributes ({},{}) for bound", min, max);
+                    panic!(
+                        "Invalid bound '{}': not a literal and no cluster available",
+                        bound
+                    );
                 }
-            } else {
-                panic!("Failed parsing bound");
+            };
+
+            let min_tokens = parse_bound(min);
+            let max_tokens = parse_bound(max);
+
+            quote! {
+                AttributeRange::InclusiveRange(
+                    #min_tokens,
+                    #max_tokens
+                )
             }
         }
     }
@@ -371,7 +384,7 @@ fn generate_attribute_code(attr: &Attribute, cluster: Option<&Cluster>) -> Token
             }
         }
     };
-    let range = parse_bound(attr, cluster);
+    let range = parse_range(attr, cluster);
     let mandatory = attr.mandatory == "M";
 
     // Parse access flags
