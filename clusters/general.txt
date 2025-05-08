@@ -364,7 +364,30 @@ cluster Level 0x0008 {
   attr 0x4000 StartUpCurrentLevel uint8   0x00,0xff                 RW     -       O
 }
 
+cluster LevelControlForLighting 0x0008 {
+  #    id     name                type    range                     access default mandatory
+  attr 0x0000 CurrentLevel        uint8   0x01,0xfe                 RPS    0xff    M
+  attr 0x0001 RemainingTime       uint16  0x0000,0xffff             R      0       O
+  attr 0x0004 CurrentFrequency    uint16  MinFrequency,MaxFrequency RPS    0       O
+  attr 0x0005 MinFrequency        uint16  0,MaxFrequency            R      0       O
+  attr 0x0006 MaxFrequency        uint16  MinFrequency,0xffff       R      0       O
+  attr 0x0010 OnOffTransitionTime uint16  0x0000,0xffff             RW     0       O
+  attr 0x0011 OnLevel             uint8   0x01,0xfe                 RW     0xff    O
+  attr 0x0012 OnTransitionTime    uint16  0x0000,0xfffe             RW     0xffff  O
+  attr 0x0013 OffTransitionTime   uint16  0x0000,0xfffe             RW     0xffff  O
+  attr 0x0014 DefaultMoveRate     uint8   0x00,0xfe                 RW     -       O
+  attr 0x000F Options             map8    -                         RW     0       M
+  attr 0x4000 StartUpCurrentLevel uint8   0x00,0xff                 RW     -       O
+}
+
 cluster PulseWidthModulation 0x001c {
+  #    id     name                type    range                     access default mandatory
+  attr 0x0000 CurrentLevel        uint8   MinLevel,MaxLevel         RPS    0xff    M
+  attr 0x0002 MinLevel            uint8   0,MaxLevel                R      0       M
+  attr 0x0003 MaxLevel            uint8   MinLevel,100              R      100     M
+  attr 0x0004 CurrentFrequency    uint16  MinFrequency,MaxFrequency RPS    0       M
+  attr 0x0005 MinFrequency        uint16  0,MaxFrequency            R      0       M
+  attr 0x0006 MaxFrequency        uint16  MinFrequency,0xffff       R      0       M
 }
 
 # vim: set ft=ruby:
