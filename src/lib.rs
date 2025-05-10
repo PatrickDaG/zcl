@@ -77,7 +77,7 @@ pub enum Status {
 }
 
 pub struct Cluster<'a, Ts> {
-    code: u16,
-    name: &'a str,
-    meta: Ts,
+    pub code: u16,
+    pub name: &'a str,
+    pub meta: Ts,
 }
