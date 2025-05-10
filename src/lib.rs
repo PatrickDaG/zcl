@@ -1,3 +1,4 @@
+#![no_std]
 use thiserror::Error;
 
 pub mod types;
